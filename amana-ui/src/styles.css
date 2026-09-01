@@ -1,0 +1,572 @@
+/* Amana — portable private credit history.
+   Copyright (C) 2026 the Amana authors.
+   SPDX-License-Identifier: Apache-2.0 */
+
+:root {
+  /* A night palette, but a warm one. Credit is a human business. */
+  --ink-900: #0b0f1a;
+  --ink-850: #101524;
+  --ink-800: #151b2e;
+  --ink-700: #1d2540;
+  --ink-600: #2a3454;
+  --ink-500: #3d4a72;
+
+  --paper: #eef1f8;
+  --paper-dim: #9aa5c4;
+  --paper-faint: #6b7799;
+
+  /* Gold carries the brand: أمانة is a trust placed in someone's hands. */
+  --gold: #d9a441;
+  --gold-bright: #f0bc5c;
+  --gold-dim: rgba(217, 164, 65, 0.14);
+
+  --green: #4ea882;
+  --green-dim: rgba(78, 168, 130, 0.14);
+  --red: #d9645f;
+  --red-dim: rgba(217, 100, 95, 0.14);
+
+  --radius: 10px;
+  --radius-sm: 6px;
+
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--ink-900);
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A faint vertical gradient so the page has a horizon rather than a flat wall. */
+#root {
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 500px at 50% -10%, rgba(217, 164, 65, 0.07), transparent 70%),
+    linear-gradient(180deg, var(--ink-900) 0%, #080b13 100%);
+}
+
+.shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px 96px;
+}
+
+/* --- masthead ------------------------------------------------------------ */
+
+.masthead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 40px 0 28px;
+  border-bottom: 1px solid var(--ink-700);
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.wordmark h1 {
+  font-family: var(--serif);
+  font-size: 38px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.wordmark .arabic {
+  font-size: 30px;
+  color: var(--gold);
+  opacity: 0.85;
+  /* The Arabic is decorative here; screen readers get the Latin wordmark. */
+}
+
+.tagline {
+  color: var(--paper-dim);
+  font-size: 14px;
+  max-width: 48ch;
+  margin: 6px 0 0;
+}
+
+/* --- role switcher ------------------------------------------------------- */
+
+.roles {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--ink-800);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius);
+  margin: 28px 0 32px;
+  flex-wrap: wrap;
+}
+
+.roles button {
+  flex: 1 1 150px;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--paper-dim);
+  font-family: inherit;
+  font-size: 14px;
+  padding: 11px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  text-align: center;
+}
+
+.roles button:hover:not(.active) {
+  color: var(--paper);
+  background: var(--ink-700);
+}
+
+.roles button.active {
+  background: var(--gold);
+  color: var(--ink-900);
+  font-weight: 600;
+}
+
+.roles button .role-sub {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+/* --- cards --------------------------------------------------------------- */
+
+.card {
+  background: var(--ink-850);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+
+.card > h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--paper-faint);
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.card > .card-lede {
+  color: var(--paper-dim);
+  font-size: 14px;
+  margin: 0 0 18px;
+  max-width: 68ch;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* --- forms --------------------------------------------------------------- */
+
+label {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--paper-faint);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  background: var(--ink-900);
+  border: 1px solid var(--ink-600);
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+input.mono,
+textarea.mono {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 92px;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.hint {
+  font-size: 12.5px;
+  color: var(--paper-faint);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+/* --- buttons ------------------------------------------------------------- */
+
+button.btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: filter 0.15s, background 0.15s;
+}
+
+button.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button.btn.primary {
+  background: var(--gold);
+  color: var(--ink-900);
+}
+
+button.btn.primary:hover:not(:disabled) {
+  background: var(--gold-bright);
+}
+
+button.btn.ghost {
+  background: transparent;
+  border-color: var(--ink-600);
+  color: var(--paper);
+}
+
+button.btn.ghost:hover:not(:disabled) {
+  border-color: var(--ink-500);
+  background: var(--ink-800);
+}
+
+button.btn.danger {
+  background: transparent;
+  border-color: rgba(217, 100, 95, 0.5);
+  color: var(--red);
+}
+
+button.btn.danger:hover:not(:disabled) {
+  background: var(--red-dim);
+}
+
+button.btn.tiny {
+  font-size: 12px;
+  padding: 5px 11px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* --- data display -------------------------------------------------------- */
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--ink-800);
+  font-size: 14px;
+}
+
+.kv:last-child {
+  border-bottom: 0;
+}
+
+.kv .k {
+  color: var(--paper-faint);
+}
+
+.kv .v {
+  font-variant-numeric: tabular-nums;
+}
+
+.hash {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--paper-dim);
+  word-break: break-all;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1px;
+  background: var(--ink-700);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.stat {
+  background: var(--ink-850);
+  padding: 14px 16px;
+}
+
+.stat .n {
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.stat .l {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--paper-faint);
+  margin-top: 3px;
+}
+
+/* --- attestation rows ---------------------------------------------------- */
+
+.record {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  background: var(--ink-800);
+}
+
+.record .body {
+  flex: 1;
+  min-width: 0;
+}
+
+.record .title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.record .meta {
+  font-size: 12.5px;
+  color: var(--paper-faint);
+}
+
+.ratio {
+  font-variant-numeric: tabular-nums;
+  font-size: 19px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ratio .of {
+  color: var(--paper-faint);
+  font-size: 13px;
+}
+
+/* --- badges -------------------------------------------------------------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.badge.live {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.badge.dead {
+  background: var(--red-dim);
+  color: var(--red);
+}
+
+.badge.neutral {
+  background: var(--ink-700);
+  color: var(--paper-dim);
+}
+
+.badge.gold {
+  background: var(--gold-dim);
+  color: var(--gold);
+}
+
+/* --- notices ------------------------------------------------------------- */
+
+.notice {
+  padding: 12px 15px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  margin-bottom: 16px;
+  border: 1px solid;
+  line-height: 1.5;
+}
+
+.notice.error {
+  background: var(--red-dim);
+  border-color: rgba(217, 100, 95, 0.35);
+  color: #f0a9a5;
+}
+
+.notice.ok {
+  background: var(--green-dim);
+  border-color: rgba(78, 168, 130, 0.35);
+  color: #8fd4b4;
+}
+
+.notice.info {
+  background: var(--ink-800);
+  border-color: var(--ink-600);
+  color: var(--paper-dim);
+}
+
+.empty {
+  text-align: center;
+  padding: 34px 20px;
+  color: var(--paper-faint);
+  font-size: 14px;
+  border: 1px dashed var(--ink-600);
+  border-radius: var(--radius-sm);
+}
+
+/* --- the privacy ledger -------------------------------------------------- */
+
+/* A side-by-side of what the chain can see and what it cannot. This is the
+   product, so the interface states it outright rather than implying it. */
+.split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1px;
+  background: var(--ink-700);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.split section {
+  background: var(--ink-850);
+  padding: 16px 18px;
+}
+
+.split h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+.split .public h3 {
+  color: var(--gold);
+}
+
+.split .private h3 {
+  color: var(--green);
+}
+
+.split ul {
+  margin: 0;
+  padding-left: 17px;
+  font-size: 13.5px;
+  color: var(--paper-dim);
+}
+
+.split li {
+  margin-bottom: 5px;
+}
+
+/* --- footer -------------------------------------------------------------- */
+
+.foot {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--ink-800);
+  color: var(--paper-faint);
+  font-size: 12.5px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.foot a {
+  color: var(--paper-dim);
+}
+
+.spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(11, 15, 26, 0.3);
+  border-top-color: var(--ink-900);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: -2px;
+  margin-right: 7px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 620px) {
+  .wordmark h1 {
+    font-size: 30px;
+  }
+  .shell {
+    padding: 0 16px 64px;
+  }
+}
