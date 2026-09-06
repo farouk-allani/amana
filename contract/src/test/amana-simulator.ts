@@ -32,6 +32,7 @@ import {
   type StoredAttestation,
   createAmanaPrivateState,
   selectAttestations,
+  isLiveAttestation,
   witnesses,
 } from '../witnesses.js';
 import { randomBytes, deriveKey } from './utils.js';
@@ -40,7 +41,8 @@ import { randomBytes, deriveKey } from './utils.js';
 export type RepaymentRecord = {
   onTime: bigint;
   total: bigint;
-  period: bigint;
+  periodStart: bigint;
+  periodEnd: bigint;
 };
 
 export class AmanaSimulator {
@@ -59,7 +61,7 @@ export class AmanaSimulator {
     this.devices.set(initialActor, initial);
 
     const { currentPrivateState, currentContractState, currentZswapLocalState } =
-      this.contract.initialState(createConstructorContext(initial, '0'.repeat(64)));
+      this.contract.initialState(createConstructorContext(initial, '0'.repeat(64)), pureCircuits.lenderKey(initial.secretKey));
 
     this.circuitContext = {
       currentPrivateState,
@@ -169,7 +171,8 @@ export class AmanaSimulator {
       subject: this.subjectIdOf(borrower, lenderName),
       onTime: record.onTime,
       total: record.total,
-      period: record.period,
+      periodStart: record.periodStart,
+      periodEnd: record.periodEnd,
       nonce: nonce ?? randomBytes(32),
     };
 
@@ -243,42 +246,31 @@ export class AmanaSimulator {
    * production API does it — the circuit cannot see the verifier's thresholds
    * from inside a witness.
    */
-  proveCreditStanding(checkId: Uint8Array, minOnTime: bigint, minPeriod: bigint): Ledger {
-    this.mutate((ps) => ({
-      ...ps,
-      presenting: selectAttestations(ps.wallet, minOnTime, minPeriod),
-    }));
-    this.circuitContext = this.contract.impureCircuits.proveCreditStanding(
-      this.circuitContext,
-      checkId,
-      minOnTime,
-      minPeriod,
-    ).context;
+  createCheck(nonce: Uint8Array, borrower: string, minOnTime: bigint, minPeriod: bigint, maxPeriod: bigint): Uint8Array {
+    const key = pureCircuits.verifierKey(this.getPrivateState().secretKey);
+    const id = pureCircuits.requestId(key, nonce);
+    const recipient = pureCircuits.checkRecipient(this.secretKeyOf(borrower), id);
+    this.createCheckRaw(id, nonce, recipient, minOnTime, minPeriod, maxPeriod);
+    return id;
+  }
+
+  createCheckRaw(id: Uint8Array, nonce: Uint8Array, recipient: Uint8Array, minOnTime: bigint, minPeriod: bigint, maxPeriod: bigint): Ledger {
+    this.circuitContext = this.contract.impureCircuits.createCheck(this.circuitContext, id, nonce, recipient, minOnTime, minPeriod, maxPeriod).context;
     this.save();
     return this.getLedger();
   }
 
-  /**
-   * Answer a check while presenting an explicitly chosen set of leaves,
-   * bypassing {@link selectAttestations}.
-   *
-   * This is how a dishonest borrower is modelled: an honest client would never
-   * present the same leaf twice, so the tests that prove the circuit rejects
-   * it have to reach past the honest client to do so.
-   */
-  proveWithSelection(
-    checkId: Uint8Array,
-    minOnTime: bigint,
-    minPeriod: bigint,
-    presenting: bigint[],
-  ): Ledger {
+  proveCreditStanding(checkId: Uint8Array): Ledger {
+    const led = this.getLedger();
+    const terms = led.requestedChecks.member(checkId) ? led.requestedChecks.lookup(checkId) : null;
+    this.mutate((ps) => ({ ...ps, presenting: terms ? selectAttestations(
+      ps.wallet.filter((s) => isLiveAttestation(led, s)), terms.minOnTime, terms.minPeriod, terms.maxPeriod) : [] }));
+    return this.proveWithSelection(checkId, [...this.getPrivateState().presenting]);
+  }
+
+  proveWithSelection(checkId: Uint8Array, presenting: bigint[]): Ledger {
     this.mutate((ps) => ({ ...ps, presenting }));
-    this.circuitContext = this.contract.impureCircuits.proveCreditStanding(
-      this.circuitContext,
-      checkId,
-      minOnTime,
-      minPeriod,
-    ).context;
+    this.circuitContext = this.contract.impureCircuits.proveCreditStanding(this.circuitContext, checkId).context;
     this.save();
     return this.getLedger();
   }

@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react';
 import type { AmanaAPI, AmanaDerivedState } from '../../../api/src/index.js';
+import { utils } from '../../../api/src/index.js';
 import { ActionButton, Badge, Card, Field, Hash, Notice, Stat } from '../ui.jsx';
 
 export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> = ({
@@ -38,16 +39,16 @@ export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }>
             <h3>Public ledger</h3>
             <ul>
               <li>Which institutions may issue</li>
-              <li>One Merkle root over every attestation ever issued</li>
+              <li>Commitment leaves, their current Merkle root, and issuing lender keys</li>
               <li>Spent nullifiers</li>
-              <li>Which thresholds were cleared, and by nobody in particular</li>
+              <li>Requested terms, verifier keys, check-specific response keys, and results</li>
               <li>Counts: issued, revoked, answered</li>
             </ul>
           </section>
           <section className="private">
-            <h3>Never leaves the device</h3>
+            <h3>Private to holder and prover</h3>
             <ul>
-              <li>Loan amounts and terms</li>
+              <li>No loan amounts or terms in the credential schema</li>
               <li>How many repayments, and how many on time</li>
               <li>Which institutions a borrower has dealt with</li>
               <li>The borrower's identity key</li>
@@ -59,11 +60,12 @@ export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }>
 
       {!registry.bootstrapped ? (
         <Card
-          title="Claim the registry"
+          title="Activate the registry"
           lede="This registry has no authority yet. The first key to claim it becomes the operator — the consortium or regulator who decides which institutions may issue attestations. There is no second claim."
         >
           <ActionButton
-            label="Claim as authority"
+            label="Activate as authority"
+            disabled={!identity.isAuthority}
             busyLabel="Claiming…"
             onRun={() => api.claimAuthority()}
             onError={setError}
@@ -92,7 +94,7 @@ export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }>
         </Card>
       )}
 
-      {identity.isAuthority && (
+      {identity.isAuthority && registry.bootstrapped && (
         <Card
           title="Admit an institution"
           lede="Paste the lender key from the institution's own Lender tab. Only admitted institutions can issue attestations, and this is the trust root the whole scheme rests on."
@@ -108,7 +110,7 @@ export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }>
           <ActionButton
             label="Register lender"
             busyLabel="Registering…"
-            disabled={newLender.trim().length !== 64}
+            disabled={!utils.isHex32(newLender.trim())}
             onRun={async () => {
               await api.registerLender(newLender.trim());
               setNewLender('');

@@ -5,9 +5,8 @@
 /**
  * Amana's private state, and the witnesses that read it.
  *
- * Everything in this file stays on the holder's device. The ledger never sees
- * an amount, a term, a repayment count, or the identity of a lender a borrower
- * has dealt with. What reaches the chain is a hash, a nullifier, and a boolean.
+ * The selected records remain private to the participant and their configured
+ * prover. The ledger sees commitments and check terms, not repayment counts.
  *
  * @module
  */
@@ -101,7 +100,8 @@ export const emptyAttestation = (): Attestation => ({
   subject: new Uint8Array(32),
   onTime: 0n,
   total: 0n,
-  period: 0n,
+  periodStart: 0n,
+  periodEnd: 0n,
   nonce: new Uint8Array(32),
 });
 
@@ -114,37 +114,35 @@ export const emptyPath = (): AmanaMerklePath => ({
   })),
 });
 
-/**
- * Choose which records to present for a check, preferring to present as few
- * as possible.
- *
- * Data minimisation is a privacy property, not a performance one. A borrower
- * with four strong records who is asked to prove twelve on-time repayments
- * should put two records into the circuit, not four: every record presented is
- * one more Merkle path whose leaf is briefly correlated with this transaction.
- * So: drop anything outside the recency window, take the strongest records
- * first, and stop the moment the bar is cleared.
- *
- * If the wallet cannot clear the bar at all, this returns the best case it can
- * assemble. The proof will then fail — deliberately, in the circuit, rather
- * than being silently rewritten into a weaker claim here.
- */
+/** Best eligible summary per lender, then the strongest four lenders. */
+const eligibleSummaries = (
+  wallet: readonly StoredAttestation[],
+  minPeriod: bigint,
+  maxPeriod: bigint,
+): StoredAttestation[] => {
+  const best = new Map<string, StoredAttestation>();
+  for (const stored of wallet) {
+    const a = stored.attestation;
+    if (a.periodStart > a.periodEnd || a.periodStart < minPeriod || a.periodEnd > maxPeriod) continue;
+    const lender = Array.from(a.lender, (b) => b.toString(16).padStart(2, '0')).join('');
+    const previous = best.get(lender);
+    if (!previous || a.onTime > previous.attestation.onTime) best.set(lender, stored);
+  }
+  return [...best.values()]
+    .sort((a, b) => a.attestation.onTime === b.attestation.onTime ? 0 : a.attestation.onTime > b.attestation.onTime ? -1 : 1)
+    .slice(0, PROOF_SLOTS);
+};
+
+/** Select the fewest summaries that meet the terms; callers first filter live records. */
 export const selectAttestations = (
   wallet: readonly StoredAttestation[],
   minOnTime: bigint,
   minPeriod: bigint,
+  maxPeriod: bigint,
 ): bigint[] => {
-  const eligible = wallet
-    .filter((s) => s.attestation.period >= minPeriod)
-    .sort((a, b) => {
-      if (a.attestation.onTime === b.attestation.onTime) return 0;
-      return a.attestation.onTime > b.attestation.onTime ? -1 : 1;
-    })
-    .slice(0, PROOF_SLOTS);
-
   const chosen: bigint[] = [];
   let running = 0n;
-  for (const slot of eligible) {
+  for (const slot of eligibleSummaries(wallet, minPeriod, maxPeriod)) {
     chosen.push(slot.leafIndex);
     running += slot.attestation.onTime;
     if (running >= minOnTime) break;
@@ -156,12 +154,21 @@ export const selectAttestations = (
 export const provableTotal = (
   wallet: readonly StoredAttestation[],
   minPeriod: bigint,
+  maxPeriod: bigint,
 ): bigint =>
-  wallet
-    .filter((s) => s.attestation.period >= minPeriod)
-    .sort((a, b) => (a.attestation.onTime > b.attestation.onTime ? -1 : 1))
-    .slice(0, PROOF_SLOTS)
+  eligibleSummaries(wallet, minPeriod, maxPeriod)
     .reduce((sum, s) => sum + s.attestation.onTime, 0n);
+
+/** Check the supplied leaf index as well as the commitment. */
+export const isLiveAttestation = (ledger: Ledger, stored: StoredAttestation): boolean => {
+  try {
+    if (stored.leafIndex < 0n || stored.leafIndex >= 1024n || !ledger.issuers.member(stored.leafIndex)) return false;
+    const path = ledger.attestations.pathForLeaf(stored.leafIndex, attestationLeaf(stored.attestation));
+    return ledger.attestations.checkRoot(pureCircuits.attestationPathRoot(path));
+  } catch {
+    return false;
+  }
+};
 
 type Slots = {
   attestations: Attestation[];
@@ -194,8 +201,8 @@ const buildSlots = (ledger: Ledger, ps: AmanaPrivateState): Slots => {
   const realPaths = selected.map(pathFor);
 
   // What unused slots repeat. If the borrower is presenting nothing at all
-  // there is no live path to copy; a zero path is then the only option, and
-  // such a proof can only satisfy a threshold of zero anyway.
+  // there is no live path to copy. A positive committed threshold rejects
+  // that empty proof before the circuit consults its padding paths.
   const filler = selected[0];
   const fillerPath = realPaths[0] ?? emptyPath();
   const fillerAttestation = filler?.attestation ?? emptyAttestation();

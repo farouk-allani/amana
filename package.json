@@ -15,11 +15,11 @@
   ],
   "scripts": {
     "compact": "npm run compact --workspace=contract",
-    "build": "npm run build --workspace=contract && npm run build --workspace=api",
-    "test": "npm run test --workspace=contract",
+    "build": "npm run build --workspace=contract && npm run build --workspace=api && npm run build --workspace=amana-ui",
+    "test": "npm run test --workspace=contract && npm run test --workspace=api",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "ui": "npm run dev --workspace=amana-ui",
-    "ci": "npm run compact && npm run build && npm run test"
+    "ci": "npm run compact && npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",

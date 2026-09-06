@@ -15,9 +15,9 @@
     }
   },
   "scripts": {
-    "compact": "compact compile src/amana.compact ./src/managed/amana",
-    "compact:check": "compact compile --skip-zk src/amana.compact ./src/managed/amana",
-    "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -Rf ./src/managed ./dist/managed && cp ./src/amana.compact ./dist",
+    "compact": "node ../scripts/compile.mjs",
+    "compact:check": "node ../scripts/compile.mjs --skip-zk",
+    "build": "node ../scripts/build-workspace.mjs contract",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit"

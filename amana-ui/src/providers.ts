@@ -25,7 +25,7 @@ import type { UnboundTransaction } from '@midnight-ntwrk/midnight-js-types';
 import semver from 'semver';
 import type { Logger } from 'pino';
 
-import type { AmanaCircuitKeys, AmanaProviders } from '../../api/src/common-types.js';
+import type { AmanaCircuitKeys, AmanaProviders, PrivateStateId } from '../../api/src/common-types.js';
 import type { AmanaPrivateState } from '../../contract/src/index.js';
 import { persistentPrivateStateProvider } from './persistent-private-state-provider.js';
 
@@ -76,11 +76,9 @@ export const connectToWallet = async (
 /**
  * Assemble the provider set Amana needs.
  *
- * Note where the proving happens: `httpClientProofProvider` points at the
- * user's *own* proof server, whose address comes from the wallet's
- * configuration. Amana never sees a witness, and no server operated by us is
- * capable of constructing a proof about anybody's credit history — the
- * hardware that holds the private state is the only hardware that can.
+ * The wallet configures the proof-server URI. That prover receives witness data;
+ * it may be remote. Use a trusted local prover for the demo. Ledger privacy does
+ * not protect against an untrusted prover or a compromised browser.
  */
 export const initialiseProviders = async (
   networkId: string,
@@ -104,10 +102,12 @@ export const initialiseProviders = async (
   }
 
   return {
-    privateStateProvider: persistentPrivateStateProvider<'amanaPrivateState', AmanaPrivateState>(),
+    privateStateProvider: persistentPrivateStateProvider<PrivateStateId, AmanaPrivateState>(),
     zkConfigProvider,
     proofProvider: httpClientProofProvider(config.proverServerUri, zkConfigProvider),
-    publicDataProvider: indexerPublicDataProvider(config.indexerUri, config.indexerWsUri),
+    publicDataProvider: indexerPublicDataProvider(config.indexerUri, config.indexerWsUri,
+      // SDK's Node default uses ws.WebSocket; select the native browser transport explicitly.
+      globalThis.WebSocket as unknown as NonNullable<Parameters<typeof indexerPublicDataProvider>[2]>),
     walletProvider: {
       getCoinPublicKey: () => shielded.shieldedCoinPublicKey,
       getEncryptionPublicKey: () => shielded.shieldedEncryptionPublicKey,

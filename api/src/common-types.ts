@@ -14,16 +14,17 @@ import type {
   Attestation,
   AmanaPrivateState,
   CheckResult,
+  CheckTerms,
   Contract,
   StoredAttestation,
   Witnesses,
 } from '../../contract/src/index.js';
 
-export const amanaPrivateStateKey = 'amanaPrivateState';
+export const amanaPrivateStateKey = 'amanaPrivateStateV2';
 export type PrivateStateId = typeof amanaPrivateStateKey;
 
 export type PrivateStates = {
-  readonly amanaPrivateState: AmanaPrivateState;
+  readonly amanaPrivateStateV2: AmanaPrivateState;
 };
 
 export type AmanaContract = Contract<AmanaPrivateState, Witnesses<AmanaPrivateState>>;
@@ -77,7 +78,7 @@ export type WalletEntry = StoredAttestation & {
   readonly live: boolean;
 };
 
-/** A borrower's own view of their wallet. Never leaves the device. */
+/** A borrower's private wallet view. Sensitive: do not send to analytics. */
 export type WalletState = {
   readonly attestations: readonly WalletEntry[];
   /** Records still live on chain, i.e. not revoked. */
@@ -95,8 +96,13 @@ export type AmanaDerivedState = {
 /** A verifier's reading of one check. */
 export type CheckOutcome = {
   readonly checkId: string;
+  readonly exists: boolean;
   readonly answered: boolean;
+  readonly terms?: CheckTerms;
   readonly result?: CheckResult;
 };
 
-export type { Attestation, AmanaPrivateState, CheckResult, StoredAttestation };
+export type CheckDraft = { readonly checkId: string; readonly nonce: string; readonly verifier: string };
+export type CheckPolicy = { readonly minOnTime: bigint; readonly minPeriod: bigint; readonly maxPeriod: bigint };
+
+export type { Attestation, AmanaPrivateState, CheckResult, CheckTerms, StoredAttestation };

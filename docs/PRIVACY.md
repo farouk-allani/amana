@@ -1,93 +1,56 @@
-# What Amana hides, and what it does not
+# Privacy and trust boundaries
 
-A privacy claim is only worth something if it says where it stops. This is the honest version.
+Amana proves a limited positive repayment statement. It does not prove creditworthiness, affordability, absence of debt, a complete credit history, or the truth of an issuer's source data.
 
----
+## Cryptographic boundaries
 
-## The threat we are actually addressing
+The borrower holds one secret. Different domain-separated hashes derive lender-specific pseudonyms, check-specific response keys, and check-specific nullifiers. A separate verifier key domain avoids directly equating a verifier key with its lender key, although repeated requests by the same verifier are publicly linkable to each other.
 
-Not a state adversary. The adversary is mundane and much more common:
+The public ledger contains issuer keys and leaf positions, attestation commitments and the current tree, requested thresholds/windows, verifier keys, response keys, results and nullifiers. It does not contain the underlying summary's subject, counts, interval or selected lender identities. Amounts and contractual loan terms are not collected by this credential schema.
 
-- **A competing lender** who would happily learn a rival's customer list, or an applicant's true indebtedness.
-- **A colluding pair of institutions** comparing books to find shared borrowers.
-- **A chain observer** — anyone at all — correlating on-chain activity over time.
-- **A community.** In the markets microfinance serves, being publicly known as someone who borrows carries real social cost, and it falls hardest on women. This is the adversary that keeps people invisible, and it is the one most systems ignore.
+The contract knows the private data inside the proving computation. The public ledger receives commitments and disclosed query values; it is inaccurate to say the circuit cannot read the data it proves.
 
----
+## Committed requests and holder binding
 
-## What never reaches the chain
+A request ID is derived from the verifier's key and a nonce. `createCheck` recomputes that ID from the caller's private key, rejects duplicates, and stores a positive threshold and inclusive reporting window. Borrowers pass only the ID to the proof circuit.
 
-| | Where it lives |
-|---|---|
-| Loan amounts, terms | Borrower's device |
-| Repayment counts (on-time, total) | Borrower's device |
-| Which institutions lent to a borrower | Borrower's device |
-| The borrower's identity key | Borrower's device |
-| That two records belong to one person | Not derivable by anyone but the holder |
-| How many records a borrower holds | Not derivable — proofs are a fixed shape |
+Before registration the intended borrower derives a response key from their secret and the ID. The verifier commits that response. Observers cannot squat another verifier's ID or consume its check with a different wallet. Copying a valid answer transaction cannot change its terms or recipient; at most the same correct result is accepted once.
 
-These are not withheld by policy. `issueAttestation` takes the record through the `pendingAttestation` **witness**, so the amounts are never transaction inputs; the ledger receives `persistentHash<Attestation>` and could not recover the preimage if it wanted to.
+The verifier must authenticate the response-key exchange and associate the check with its application. An attacker controlling that exchange can substitute a different wallet. Key sharing or compromise can transfer the ability to answer. No civil identity is proven.
 
-## What is public, by construction
+## Aggregation and recency
 
-- Which institutions may issue, and which one filled each leaf.
-- One Merkle root over every attestation ever issued.
-- Spent nullifiers.
-- The thresholds each answered check cleared.
-- Counts: issued, revoked, answered.
+Every used summary must open to a live leaf, belong to the proving secret under its issuer-specific pseudonym, and have its full interval inside the committed window. On-time counts cannot exceed scheduled counts. Issuers must agree on the semantic definition: currently on or before the due date, not loyalty points or an unspecified grace period.
 
-`issuers` maps a leaf index to the institution that wrote it. This is a deliberate disclosure: only the issuer may revoke, and that rule has to be checkable. It reveals *which institution filled slot 7*, never *whose record slot 7 is* — and an observer already knew that institution submitted a transaction at that moment.
+One summary per lender prevents overlapping snapshots from one issuer being added together. This does not prevent dishonest institutions from attributing the same real-world event to multiple lender keys. Registry admission, issuer audits, and source-data reconciliation remain required trust controls.
 
----
+There is no trusted current-date assertion or request expiry. A verifier may deliberately choose a historical or future upper bound. The standard UI uses the current UTC calendar month. Bounds identify eligible reporting intervals; they do not prove how recently a lender updated its operational database.
 
-## The three properties worth naming
+## Hiding the number of summaries
 
-### Unlinkability across lenders
+Every successful proof performs four live-root checks. Unused slots duplicate a real path, and all four roots must equal the current tree root. Used flags, actual contributions and lender distinctness remain private.
 
-`subjectId = H("amana:subject:", borrowerKey, lenderKey)`.
+A test executes the compiled circuit with one and four records against the same request and ledger and compares the full public transcripts and public inputs for equality. It also checks the private transcripts differ. This is a regression check, not a formal audit or a timing-indistinguishability proof.
 
-Two institutions comparing every identifier in their books find no overlap, even for a shared customer. Proved in `unlinkability of borrower pseudonyms`.
+## Revocation and capacity
 
-The limit: this protects the *identifier*. It does not protect a borrower who gives both institutions the same phone number. Amana secures the ledger, not the intake form.
+The issuer overwrites its leaf with the tree's default value and removes its live issuer entry. Proofs built against an earlier state may need rebuilding. Once revocation is effective in the accepted ledger, that leaf cannot support a new accepted check.
 
-### Unlinkability across checks
+Earlier accepted check results remain historical statements. Refreshing or revalidating a lending decision requires a fresh check; do not present an old result as current standing.
 
-`nullifier = H("amana:nullifier:", borrowerKey, checkId)`.
+The chosen current-root tree avoids accepting historic pre-revocation roots. Other revocation designs can also support private non-membership proofs; a public revocation set does not inherently require borrower identification.
 
-Two verifiers comparing the nullifiers on their answered checks learn nothing. The same borrower produces unrelated values for unrelated checks.
+Tree depth 10 allows 1,024 lifetime issuance positions. Revocation does not free positions. Publicly visible issuer attribution, timing and a small population can substantially reduce the effective anonymity set.
 
-The limit: **timing**. Amana publishes a transaction when a borrower answers a check. A verifier who knows they issued check *X* at 14:02 and sees exactly one answer at 14:03 has learned that transaction is the answer to *X*. Nullifiers are unlinkable; transaction timing is not. Mitigating that needs batching or delay, and Amana does neither today.
+## Remaining exposure
 
-### Uniform proof shape
+- **Storage and backups:** identity keys and credentials are plaintext in localStorage. The legacy provider export methods also serialize plaintext despite the SDK field being named `encryptedPayload`; do not treat these as encrypted backups. Corrupt stored state now causes an explicit error rather than being silently discarded. Production storage, encrypted export/import and recovery are pending.
+- **Prover:** the wallet supplies the prover URI. A remote or compromised prover can see witnesses. Use a trusted local prover. The application does not enforce localhost.
+- **Network and transaction metadata:** indexers see requests and IP addresses; wallet funding and transaction timing can link activity outside the proof. No mixing or batching is implemented.
+- **Known identities:** lenders can already know customers through KYC, the application channel and their source systems. Pseudonyms alone cannot unlink those records.
+- **Threshold probing:** repeated requests can narrow the underlying total if the borrower cooperates. There is no rate limit or disclosure budget. The UI requires review of each committed request.
+- **Authority and issuers:** one compromised authority can admit dishonest issuers; there is no authority rotation or lender removal circuit. Revocation controls credential validity, not factual correctness.
+- **Spam and growth:** any holder of a verifier secret can create its own paid requests. There is no allowlist, expiry, cleanup or per-verifier quota.
+- **Browser isolation:** writes are serialized in one API instance only. Multiple tabs sharing the same profile can race over private state. Use separate browser profiles for different actors and one active tab per actor.
 
-Every `proveCreditStanding` performs exactly four Merkle membership checks and four ledger reads, whether the borrower presented one record or four. Unused slots repeat a live path, so all four disclosed roots equal the tree's real root.
-
-This is enforced by the compiler, not by discipline — making a ledger read conditional on a witness value is a disclosure the disclosure analysis rejects outright. The README documents the exact error and the fix.
-
----
-
-## Where it leaks
-
-**Timing correlation.** As above. The strongest remaining handle, and it is a real one.
-
-**The wallet's network vantage.** Building a proof means fetching current public state to rebuild Merkle paths. Whoever serves that state sees an IP address asking. Amana points at the wallet's configured indexer and adds no mixing.
-
-**Revocation is visible as an event.** Revoking publishes a leaf index. Nobody learns whose record it was, but the *issuing lender* obviously knows, and they learn that a leaf they wrote is no longer usable — which they knew, having done it.
-
-**Small anonymity sets.** A registry with three attestations gives a borrower nowhere to hide: if only one is recent enough to clear a 24-month window, an observer can guess which was used. This is inherent to the construction and improves as the tree fills. A pilot deployment should be honest that early users have weaker privacy than later ones.
-
-**Threshold granularity.** A verifier who issues checks at 13, then 14, then 15 and watches which succeed learns the borrower's total by binary search. Amana does not rate-limit this. The Wave 3 answer is banded disclosure — prove membership of a range, not a comparison against an attacker-chosen number.
-
-**The device is the wallet.** Credentials live in `localStorage`. An attacker with the device has them. There is no passphrase and no encryption at rest yet.
-
----
-
-## What we deliberately did not do
-
-**No revocation list.** A public set of revoked commitments would force a borrower to reveal something about which attestation is theirs in order to prove non-membership. Overwriting the leaf achieves revocation with zero borrower-side disclosure.
-
-**No historic Merkle tree.** `HistoricMerkleTree` accepts past roots, which would let a borrower keep proving with a pre-revocation root. Convenience that silently disables revocation is worse than the staleness it avoids.
-
-**No server-side proving.** The proof provider points at the user's own proof server. A hosted prover would be handed the witness — every amount, every lender — which would undo the entire design at the one point where nobody would think to look.
-
-**No margin on chain.** An answered check records the threshold cleared, not the total. Recording the true figure would be more useful to lenders and would leak the number the whole system exists to protect. Tested in *records the bar that was cleared, never the margin*.
+Do not use this prototype to make real lending decisions without institutional validation, operational security work and review of applicable requirements.

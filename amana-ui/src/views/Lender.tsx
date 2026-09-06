@@ -13,11 +13,12 @@ export const LenderView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> =
 }) => {
   const { registry, identity } = state;
 
-  const [institution, setInstitution] = useState('Enda Tamweel');
+  const [institution, setInstitution] = useState('Demo lender A');
   const [subject, setSubject] = useState('');
   const [onTime, setOnTime] = useState('14');
   const [total, setTotal] = useState('14');
-  const [period, setPeriod] = useState(() => utils.currentPeriod().toString());
+  const [periodStart, setPeriodStart] = useState(() => utils.periodsAgo(23).toString());
+  const [periodEnd, setPeriodEnd] = useState(() => utils.currentPeriod().toString());
 
   const [credential, setCredential] = useState('');
   const [error, setError] = useState('');
@@ -28,11 +29,10 @@ export const LenderView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> =
     .filter(([, lender]) => lender === identity.lenderKey)
     .sort((a, b) => Number(b[0] - a[0]));
 
-  const valid =
-    subject.trim().length === 64 &&
-    /^\d+$/.test(onTime) &&
-    /^\d+$/.test(total) &&
-    BigInt(onTime) <= BigInt(total || '0');
+  const count = utils.parseUint(onTime), scheduled = utils.parseUint(total);
+  const start = utils.parseUint(periodStart, 32), end = utils.parseUint(periodEnd, 32);
+  const valid = utils.isHex32(subject.trim()) && count !== null && scheduled !== null
+    && count <= scheduled && start !== null && end !== null && start <= end && institution.length <= 160;
 
   return (
     <>
@@ -81,14 +81,17 @@ export const LenderView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> =
         </Field>
 
         <div className="field-row">
-          <Field label="Repaid on time">
+          <Field label="On time within this interval">
             <input value={onTime} inputMode="numeric" onChange={(e) => setOnTime(e.target.value)} />
           </Field>
-          <Field label="Repayments scheduled">
+          <Field label="Scheduled within this interval">
             <input value={total} inputMode="numeric" onChange={(e) => setTotal(e.target.value)} />
           </Field>
-          <Field label="Last repayment" hint={utils.formatPeriod(BigInt(period || '0'))}>
-            <input value={period} inputMode="numeric" onChange={(e) => setPeriod(e.target.value)} />
+          <Field label="Reporting start month" hint={start === null ? 'Month index since Jan 1970' : utils.formatPeriod(start)}>
+            <input value={periodStart} inputMode="numeric" onChange={(e) => setPeriodStart(e.target.value)} />
+          </Field>
+          <Field label="Reporting end month" hint={end === null ? 'Month index since Jan 1970' : utils.formatPeriod(end)}>
+            <input value={periodEnd} inputMode="numeric" onChange={(e) => setPeriodEnd(e.target.value)} />
           </Field>
         </div>
 
@@ -96,7 +99,7 @@ export const LenderView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> =
           <input value={institution} onChange={(e) => setInstitution(e.target.value)} />
         </Field>
 
-        {BigInt(onTime || '0') > BigInt(total || '0') && (
+        {count !== null && scheduled !== null && count > scheduled && (
           <Notice kind="error">
             On-time repayments cannot exceed the number scheduled. The circuit enforces this too —
             it would reject the transaction.
@@ -112,10 +115,11 @@ export const LenderView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> =
               subject: subject.trim(),
               onTime: BigInt(onTime),
               total: BigInt(total),
-              period: BigInt(period),
+              periodStart: BigInt(periodStart),
+              periodEnd: BigInt(periodEnd),
             });
             setCredential(
-              utils.encodeCredential(issued.attestation, issued.leafIndex, institution),
+              utils.encodeCredential(issued.attestation, issued.leafIndex, institution, api.deployedContractAddress),
             );
             setSubject('');
           }}
@@ -147,7 +151,7 @@ export const LenderView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> =
 
       <Card
         title="Issued by this institution"
-        lede="Revoking overwrites the leaf in the attestation tree. Every proof that ran through it stops verifying immediately — with nothing published about whose record it was."
+        lede="Revoking overwrites the leaf in the attestation tree. Future proofs using this leaf fail; previously accepted checks remain historical results — with nothing published about whose record it was."
       >
         {mine.length === 0 ? (
           <div className="empty">Nothing issued from this device yet.</div>

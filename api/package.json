@@ -4,18 +4,19 @@
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/api/src/index.js",
+  "module": "./dist/api/src/index.js",
+  "types": "./dist/api/src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
+      "types": "./dist/api/src/index.d.ts",
+      "import": "./dist/api/src/index.js",
+      "default": "./dist/api/src/index.js"
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsc --project tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "node ../scripts/build-workspace.mjs api",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   }
 }

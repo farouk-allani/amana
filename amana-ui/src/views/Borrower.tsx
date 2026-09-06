@@ -1,209 +1,85 @@
-// Amana — portable private credit history.
 // Copyright (C) 2026 the Amana authors.
 // SPDX-License-Identifier: Apache-2.0
-
-import React, { useState } from 'react';
-import type { AmanaAPI, AmanaDerivedState } from '../../../api/src/index.js';
+import React, { useRef, useState } from 'react';
+import type { AmanaAPI, AmanaDerivedState, CheckOutcome } from '../../../api/src/index.js';
 import { utils } from '../../../api/src/index.js';
+import { provableTotal } from '../../../contract/src/witnesses.js';
 import { ActionButton, Badge, Card, Field, Hash, Notice, Stat } from '../ui.jsx';
 
-export const BorrowerView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> = ({
-  api,
-  state,
-}) => {
-  const { wallet, registry } = state;
-
+export const BorrowerView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> = ({ api, state }) => {
   const [lenderKey, setLenderKey] = useState('');
   const [pseudonym, setPseudonym] = useState('');
   const [credential, setCredential] = useState('');
-
   const [checkId, setCheckId] = useState('');
-  const [minOnTime, setMinOnTime] = useState('14');
-  const [windowMonths, setWindowMonths] = useState('24');
-
+  const [recipient, setRecipient] = useState('');
+  const [outcome, setOutcome] = useState<CheckOutcome | null>(null);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
-
-  const minPeriod = utils.periodsAgo(Number(windowMonths || '0'));
-  const eligible = wallet.attestations.filter((s) => s.attestation.period >= minPeriod);
-  const couldProve = eligible
-    .slice()
-    .sort((a, b) => (a.attestation.onTime > b.attestation.onTime ? -1 : 1))
-    .slice(0, 4)
-    .reduce((sum, s) => sum + s.attestation.onTime, 0n);
-
-  return (
-    <>
-      {error && <Notice kind="error">{error}</Notice>}
-      {ok && <Notice kind="ok">{ok}</Notice>}
-
-      <Card
-        title="Your identifier at a lender"
-        lede="Before an institution can issue you anything, it needs a name for you. Amana gives every institution a different one, derived from your key and theirs. Two lenders comparing their books cannot tell they share a customer — and yet a proof can still add your records together."
-      >
-        <Field label="The institution's lender key" hint="They will have it on their Lender tab.">
-          <input
-            className="mono"
-            value={lenderKey}
-            placeholder="a3f1…"
-            onChange={(e) => setLenderKey(e.target.value)}
-          />
-        </Field>
-        <div className="actions">
-          <ActionButton
-            label="Generate my identifier"
-            kind="ghost"
-            disabled={lenderKey.trim().length !== 64}
-            onRun={async () => setPseudonym(await api.subjectIdFor(lenderKey.trim()))}
-            onError={setError}
-          />
-          {registry.lenders.length > 0 && (
-            <select
-              style={{ width: 'auto' }}
-              value=""
-              onChange={(e) => e.target.value && setLenderKey(e.target.value)}
-            >
-              <option value="">pick an admitted institution…</option>
-              {registry.lenders.map((k) => (
-                <option key={k} value={k}>
-                  {k.slice(0, 16)}…
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-        {pseudonym && (
-          <>
-            <div className="kv" style={{ marginTop: 16 }}>
-              <span className="k">Give them this</span>
-              <span className="v">
-                <Hash value={pseudonym} />
-              </span>
-            </div>
-            <div className="hint">Click to copy. It is safe to send: it identifies you only to them.</div>
-          </>
-        )}
-      </Card>
-
-      <Card
-        title="Accept a credential"
-        lede="Paste what your lender gave you. It is stored on this device and nowhere else — if you clear this browser's storage, it is gone, because no server holds a copy."
-      >
-        <Field label="Credential">
-          <textarea
-            className="mono"
-            value={credential}
-            placeholder='{ "v": 1, … }'
-            onChange={(e) => setCredential(e.target.value)}
-          />
-        </Field>
-        <ActionButton
-          label="Add to my wallet"
-          kind="ghost"
-          disabled={credential.trim().length === 0}
+  const lookup = useRef(0);
+  const terms = outcome?.terms;
+  const couldProve = terms ? provableTotal(state.wallet.attestations.filter((s) => s.live), terms.minPeriod, terms.maxPeriod) : 0n;
+  const addressedToMe = !!terms && utils.bytesToHex(terms.recipient) === recipient;
+  return <>
+    {error && <Notice kind="error">{error}</Notice>}
+    {ok && <Notice kind="ok">{ok}</Notice>}
+    <Card title="Your identifier at a lender" lede="Each lender gets a different pseudonym. Your existing account relationship can still identify you to that lender.">
+      <Field label="Institution lender key"><input className="mono" value={lenderKey} onChange={(e) => { setLenderKey(e.target.value); setPseudonym(''); }} /></Field>
+      <ActionButton label="Generate my identifier" kind="ghost" disabled={!utils.isHex32(lenderKey.trim())}
+        onRun={async () => setPseudonym(await api.subjectIdFor(lenderKey.trim()))} onError={setError} />
+      {pseudonym && <div className="kv"><span className="k">Send to this lender</span><Hash value={pseudonym} /></div>}
+    </Card>
+    <Card title="Accept a credential" lede="Credentials and your identity key are stored unencrypted in this browser. Keep this device secure and use a trusted proof server.">
+      <Field label="Version 2 credential"><textarea className="mono" value={credential} onChange={(e) => setCredential(e.target.value)} /></Field>
+      <ActionButton label="Add to my wallet" kind="ghost" disabled={!credential.trim()}
+        onRun={async () => { await api.importCredential(credential); setCredential(''); }}
+        onError={setError} onDone={setOk} doneMessage="Credential added." />
+    </Card>
+    <Card title="Your repayment summaries">
+      <div className="stat-row"><Stat n={state.wallet.attestations.length} l="Credentials" /><Stat n={state.wallet.liveCount} l="Live" /></div>
+      {state.wallet.attestations.length === 0 && <div className="empty">Ask a lender you have repaid to issue a summary.</div>}
+      {state.wallet.attestations.map((s) => <div className="record" key={s.leafIndex.toString()}>
+        <div className="body"><div className="title">{s.lenderName}</div>
+          <div className="meta">{utils.formatPeriod(s.attestation.periodStart)} – {utils.formatPeriod(s.attestation.periodEnd)} · leaf #{s.leafIndex.toString()}</div></div>
+        <Badge kind={s.live ? 'live' : 'dead'}>{s.live ? 'live' : 'not live'}</Badge>
+        <div className="ratio">{s.attestation.onTime.toString()}<span className="of"> / {s.attestation.total.toString()}</span></div>
+      </div>)}
+    </Card>
+    <Card title="1. Bind a check to your wallet" lede="Receive a check ID from your verifier. Send back the response key through the channel you use for this application. It is unique to this check.">
+      <Field label="Check identifier"><input className="mono" value={checkId} onChange={(e) => {
+        lookup.current++; setCheckId(e.target.value); setRecipient(''); setOutcome(null); setError(''); setOk('');
+      }} /></Field>
+      <ActionButton label="Generate response key" kind="ghost" disabled={!utils.isHex32(checkId.trim())}
+        onRun={async () => { const n = ++lookup.current; const r = await api.checkRecipientFor(checkId.trim()); if (n === lookup.current) setRecipient(r); }} onError={setError} />
+      {recipient && <div className="kv"><span className="k">Send to the verifier</span><Hash value={recipient} /></div>}
+    </Card>
+    <Card title="2. Review committed terms and prove" lede="After receiving your response key, the verifier creates the check on chain. Load those terms before consenting to publish the result.">
+      <ActionButton label="Load committed check" kind="ghost" disabled={!utils.isHex32(checkId.trim())}
+        onRun={async () => {
+          const n = ++lookup.current, id = checkId.trim();
+          const [o, r] = await Promise.all([api.readCheck(id), api.checkRecipientFor(id)]);
+          if (n === lookup.current) { setOutcome(o); setRecipient(r); }
+        }} onError={setError} />
+      {outcome && !outcome.exists && <Notice kind="info">The verifier has not created this check yet. Send them your response key.</Notice>}
+      {terms && <>
+        <div className="kv"><span className="k">Required on-time repayments</span><span className="v">{terms.minOnTime.toString()}</span></div>
+        <div className="kv"><span className="k">Inclusive reporting window</span><span className="v">{utils.formatPeriod(terms.minPeriod)} – {utils.formatPeriod(terms.maxPeriod)}</span></div>
+        <div className="kv"><span className="k">Verifier key</span><Hash value={utils.bytesToHex(terms.verifier)} /></div>
+        {!addressedToMe ? <Notice kind="error">This check is bound to a different wallet.</Notice>
+          : outcome?.answered ? <Notice kind="ok">This check has already been answered.</Notice>
+          : <Notice kind={couldProve >= terms.minOnTime ? 'info' : 'error'}>
+              Your eligible live summaries support {couldProve.toString()} on-time repayments.
+              Only one summary per lender and at most four lenders can contribute.
+              Proving publishes the required threshold and reporting window, plus a check-specific nullifier.
+            </Notice>}
+        <ActionButton label="Consent and prove" busyLabel="Building the proof…"
+          disabled={!addressedToMe || outcome?.answered || couldProve < terms.minOnTime}
           onRun={async () => {
-            const parsed = utils.decodeCredential(credential);
-            await api.receiveAttestation(
-              parsed.attestation as never,
-              parsed.leafIndex,
-              parsed.lenderName,
-            );
-            setCredential('');
-          }}
-          onError={setError}
-          onDone={setOk}
-          doneMessage="Credential added."
-        />
-      </Card>
-
-      <Card title="Your record">
-        <div className="stat-row" style={{ marginBottom: 18 }}>
-          <Stat n={wallet.attestations.length} l="Credentials" />
-          <Stat n={wallet.liveCount} l="Still live" />
-          <Stat n={couldProve.toString()} l={`Provable in ${windowMonths}m`} />
-        </div>
-
-        {wallet.attestations.length === 0 ? (
-          <div className="empty">
-            No credentials yet. Ask a lender you have repaid to issue one.
-          </div>
-        ) : (
-          wallet.attestations.map((s, i) => {
-            const recent = s.attestation.period >= minPeriod;
-            return (
-              <div className="record" key={`${s.leafIndex}-${i}`}>
-                <div className="body">
-                  <div className="title">{s.lenderName}</div>
-                  <div className="meta">
-                    Last repaid {utils.formatPeriod(s.attestation.period)} · leaf #
-                    {s.leafIndex.toString()}
-                  </div>
-                </div>
-                {!recent && <Badge kind="neutral">outside window</Badge>}
-                {s.live ? <Badge kind="live">live</Badge> : <Badge kind="dead">revoked</Badge>}
-                <div className="ratio">
-                  {s.attestation.onTime.toString()}
-                  <span className="of"> / {s.attestation.total.toString()}</span>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </Card>
-
-      <Card
-        title="Answer a check"
-        lede="A lender assessing you hands you a check identifier out of band. Answering it proves you clear their bar and nothing else — not your total, not who you borrowed from, not how many records you used."
-      >
-        <Field label="Check identifier" hint="From the verifier's own tab.">
-          <input
-            className="mono"
-            value={checkId}
-            placeholder="9b04…"
-            onChange={(e) => setCheckId(e.target.value)}
-          />
-        </Field>
-        <div className="field-row">
-          <Field label="On-time repayments required">
-            <input
-              value={minOnTime}
-              inputMode="numeric"
-              onChange={(e) => setMinOnTime(e.target.value)}
-            />
-          </Field>
-          <Field label="Within the last (months)">
-            <input
-              value={windowMonths}
-              inputMode="numeric"
-              onChange={(e) => setWindowMonths(e.target.value)}
-            />
-          </Field>
-        </div>
-
-        {couldProve < BigInt(minOnTime || '0') ? (
-          <Notice kind="info">
-            Your live credentials inside this window come to {couldProve.toString()} on-time
-            repayments, short of the {minOnTime} required. Answering would fail in the circuit —
-            which is checked here first so you do not spend a transaction finding out.
-          </Notice>
-        ) : (
-          <Notice kind="ok">
-            You can clear this bar. Amana will present the fewest credentials that do so.
-          </Notice>
-        )}
-
-        <ActionButton
-          label="Prove it"
-          busyLabel="Building the proof…"
-          disabled={checkId.trim().length !== 64 || couldProve < BigInt(minOnTime || '0')}
-          onRun={() =>
-            api.proveCreditStanding(checkId.trim(), BigInt(minOnTime), minPeriod)
-          }
-          onError={setError}
-          onDone={setOk}
-          doneMessage="Proved. The verifier can now read the outcome."
-        />
-      </Card>
-    </>
-  );
+            const n = lookup.current, id = outcome!.checkId;
+            await api.proveCreditStanding(id);
+            const refreshed = await api.readCheck(id);
+            if (n === lookup.current) setOutcome(refreshed);
+          }} onError={setError} onDone={setOk} doneMessage="Proof accepted. The verifier can read this check's result." />
+      </>}
+    </Card>
+  </>;
 };

@@ -25,12 +25,11 @@ import CompactStandardLibrary;
 //
 //   public  — which institutions may issue, a Merkle root over every issued
 //             attestation, spent nullifiers, and answered checks.
-//   private — the repayment records themselves. Amounts, terms, counts, the
-//             borrower's identity key, and the identity of the issuing lender
-//             never leave the borrower's device.
+//   private — counts, reporting intervals, borrower key and lender selection.
+//             Witnesses are processed by the participant's configured prover.
 //
-// Nothing here is a number the chain can see. A verifier learns exactly one
-// bit: "this holder cleared the bar you set."
+// The public result records the requested threshold and interval, plus a
+// check-specific nullifier. Actual repayment counts remain private.
 // ---------------------------------------------------------------------------
 
 /**
@@ -46,10 +45,11 @@ export struct Attestation {
   subject: Bytes<32>;
   // Repayments made on or before their due date.
   onTime: Uint<16>;
-  // Total repayments scheduled over the life of the loans.
+  // Total repayments scheduled in this reporting interval.
   total: Uint<16>;
-  // Period index (months since a fixed epoch) of the most recent repayment.
-  period: Uint<32>;
+  // Inclusive month indices since 1970-01. Counts cover this entire interval.
+  periodStart: Uint<32>;
+  periodEnd: Uint<32>;
   // Blinding factor, so two identical records do not collide in the tree.
   nonce: Bytes<32>;
 }
@@ -61,10 +61,22 @@ export struct Attestation {
 export struct CheckResult {
   minOnTime: Uint<16>;
   minPeriod: Uint<32>;
+  maxPeriod: Uint<32>;
   nullifier: Bytes<32>;
 }
 
+/** Immutable, verifier-created terms and a check-specific holder binding. */
+export struct CheckTerms {
+  verifier: Bytes<32>;
+  recipient: Bytes<32>;
+  minOnTime: Uint<16>;
+  minPeriod: Uint<32>;
+  maxPeriod: Uint<32>;
+}
+
 // --- public ledger ---------------------------------------------------------
+
+export ledger protocolVersion: Uint<8>;
 
 // The registry operator, established once by whoever deploys the contract.
 export ledger authority: Bytes<32>;
@@ -94,12 +106,18 @@ export ledger nullifiers: Set<Bytes<32>>;
 // checkId -> the bar that was cleared.
 export ledger checks: Map<Bytes<32>, CheckResult>;
 
+// Requests exist before proofs. There is no edit or deletion circuit.
+export ledger requestedChecks: Map<Bytes<32>, CheckTerms>;
+
 // Public counters, so the network's health is legible without leaking anyone.
 export ledger issuedCount: Counter;
 export ledger revokedCount: Counter;
 export ledger acceptedCount: Counter;
 
-constructor() {
+constructor(initialAuthority: Bytes<32>) {
+  protocolVersion = 2;
+  assert(initialAuthority != default<Bytes<32>>, "authority key must not be zero");
+  authority = disclose(initialAuthority);
   bootstrapped = false;
 }
 
@@ -110,7 +128,7 @@ constructor() {
 witness localSecretKey(): Bytes<32>;
 
 // The attestation a lender is about to issue. Passing it as a witness rather
-// than a parameter is what keeps amounts off the chain at issuance time.
+// than a parameter keeps repayment counts and intervals off chain at issuance.
 witness pendingAttestation(): Attestation;
 
 // The borrower's wallet: up to four records, their Merkle paths, and which
@@ -124,6 +142,21 @@ witness heldUsed(): Vector<4, Boolean>;
 /** A lender's public registry key. */
 export pure circuit lenderKey(sk: Bytes<32>): Bytes<32> {
   return persistentHash<Vector<2, Bytes<32>>>([pad(32, "amana:lender:"), sk]);
+}
+
+/** A verifier's key is not their public lender key, even on the same device. */
+export pure circuit verifierKey(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "amana:verifier:"), sk]);
+}
+
+/** The nonce and verifier key establish ownership of the request identifier. */
+export pure circuit requestId(verifier: Bytes<32>, nonce: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([pad(32, "amana:check:v2:"), verifier, nonce]);
+}
+
+/** The borrower sends this response key to the verifier before registration. */
+export pure circuit checkRecipient(sk: Bytes<32>, checkId: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([pad(32, "amana:recipient:"), sk, checkId]);
 }
 
 /**
@@ -149,6 +182,11 @@ export pure circuit attestationCommitment(a: Attestation): Bytes<32> {
   return persistentHash<Attestation>(a);
 }
 
+/** Shared with the client so exact-index liveness uses the circuit's hash. */
+export pure circuit attestationPathRoot(path: MerkleTreePath<10, Bytes<32>>): MerkleTreeDigest {
+  return merkleTreePathRoot<10, Bytes<32>>(path);
+}
+
 /** An attestation's contribution to the total, or zero if the slot is empty. */
 export pure circuit slotOnTime(a: Attestation, used: Boolean): Uint<32> {
   if (used) {
@@ -161,13 +199,12 @@ export pure circuit slotOnTime(a: Attestation, used: Boolean): Uint<32> {
 // --- registry --------------------------------------------------------------
 
 /**
- * Claim the registry. The first caller becomes the authority; there is no
- * second caller. Deployment and this call together form the genesis of a
- * registry, and the authority is public from that moment on.
+ * Activate the registry with the key committed during deployment.
+ * Knowing the contract address does not allow a stranger to claim it first.
  */
 export circuit claimAuthority(): [] {
   assert(!bootstrapped, "registry already has an authority");
-  authority = disclose(lenderKey(localSecretKey()));
+  assert(authority == disclose(lenderKey(localSecretKey())), "only the deployment authority may activate the registry");
   bootstrapped = true;
 }
 
@@ -188,19 +225,22 @@ export circuit registerLender(lender: Bytes<32>): [] {
  * bound to the lender signing it, and that the on-time count is not inflated
  * past the number of repayments that were actually scheduled.
  */
-export circuit issueAttestation(): [] {
+export circuit issueAttestation(): Uint<64> {
   const key = lenderKey(localSecretKey());
   const a = pendingAttestation();
 
   assert(lenders.member(disclose(key)), "not a registered lender");
   assert(a.lender == key, "attestation is not bound to the issuing lender");
   assert(a.onTime <= a.total, "on-time repayments exceed total repayments");
+  assert(a.periodStart <= a.periodEnd, "invalid reporting interval");
 
   const index = nextLeaf as Uint<64>;
+  assert(index < 1024, "registry is full");
   attestations.insertIndex(disclose(attestationCommitment(a)), disclose(index));
   issuers.insert(disclose(index), disclose(key));
   nextLeaf.increment(1);
   issuedCount.increment(1);
+  return disclose(index);
 }
 
 /**
@@ -223,15 +263,41 @@ export circuit revokeAttestation(index: Uint<64>): [] {
   revokedCount.increment(1);
 }
 
+// --- verifier requests -----------------------------------------------------
+
+export circuit createCheck(
+  checkId: Bytes<32>,
+  nonce: Bytes<32>,
+  recipient: Bytes<32>,
+  minOnTime: Uint<16>,
+  minPeriod: Uint<32>,
+  maxPeriod: Uint<32>
+): [] {
+  assert(bootstrapped, "registry has no authority yet");
+  const key = verifierKey(localSecretKey());
+  assert(checkId == requestId(key, nonce), "check identifier is not owned by this verifier");
+  assert(!requestedChecks.member(disclose(checkId)), "check already exists");
+  assert(recipient != default<Bytes<32>>, "recipient key must not be zero");
+  assert(minOnTime > 0, "repayment threshold must be positive");
+  assert(minPeriod <= maxPeriod, "invalid check window");
+  requestedChecks.insert(disclose(checkId), CheckTerms {
+    verifier: disclose(key),
+    recipient: disclose(recipient),
+    minOnTime: disclose(minOnTime),
+    minPeriod: disclose(minPeriod),
+    maxPeriod: disclose(maxPeriod)
+  });
+}
+
 // --- the proof -------------------------------------------------------------
 
 /**
  * Prove a credit standing to a verifier.
  *
  * The borrower answers a `checkId` the verifier handed them out of band, and
- * proves that the records they hold sum to at least `minOnTime` on-time
- * repayments, all of them still live in the registry and no older than
- * `minPeriod`.
+ * proves the committed terms. Each summary's entire reporting interval must
+ * lie inside the requested inclusive window; at most one summary per lender
+ * can contribute. The issuer is trusted to state the underlying facts.
  *
  * What the chain learns: that some holder of some set of valid attestations
  * cleared this bar, and a nullifier that is unlinkable to any other check.
@@ -240,17 +306,24 @@ export circuit revokeAttestation(index: Uint<64>): [] {
  * records there were, how much was borrowed, the actual on-time total, or
  * anything that ties this answer to another answer by the same person.
  */
-export circuit proveCreditStanding(
-  checkId: Bytes<32>,
-  minOnTime: Uint<16>,
-  minPeriod: Uint<32>
-): [] {
+export circuit proveCreditStanding(checkId: Bytes<32>): [] {
+  assert(requestedChecks.member(disclose(checkId)), "check does not exist");
   assert(!checks.member(disclose(checkId)), "check has already been answered");
+  const terms = requestedChecks.lookup(disclose(checkId));
 
   const sk = localSecretKey();
+  assert(terms.recipient == disclose(checkRecipient(sk, checkId)), "check is for a different borrower");
   const atts = heldAttestations();
   const paths = heldPaths();
   const used = heldUsed();
+
+  // Uint<32> safely holds four Uint<16> contributions. Fail empty proofs before
+  // accessing their padding paths; every successful proof has a real filler.
+  const t0 = slotOnTime(atts[0], used[0]);
+  const t1 = (t0 + slotOnTime(atts[1], used[1])) as Uint<32>;
+  const t2 = (t1 + slotOnTime(atts[2], used[2])) as Uint<32>;
+  const t3 = (t2 + slotOnTime(atts[3], used[3])) as Uint<32>;
+  assert(t3 >= terms.minOnTime as Uint<32>, "insufficient on-time repayments");
 
   for (const i of 0..4) {
     const a = atts[i];
@@ -263,8 +336,10 @@ export circuit proveCreditStanding(
     // A lender cannot have counted more on-time repayments than existed.
     assert(!u || a.onTime <= a.total, "malformed attestation");
 
-    // Recent enough for the verifier's window.
-    assert(!u || a.period >= minPeriod, "attestation is outside the recency window");
+    // A recent final repayment cannot bring older counts into the window.
+    assert(!u || a.periodStart <= a.periodEnd, "invalid reporting interval");
+    assert(!u || (a.periodStart >= terms.minPeriod && a.periodEnd <= terms.maxPeriod),
+      "attestation is outside the check window");
 
     // The path opens to exactly this record...
     assert(!u || paths[i].leaf == attestationCommitment(a),
@@ -281,27 +356,18 @@ export circuit proveCreditStanding(
     // borrower. Unused slots carry a duplicate of a live path (see the
     // witness provider), so the disclosed root is the tree's real root in all
     // four slots and distinguishes nothing.
-    assert(attestations.checkRoot(disclose(merkleTreePathRoot<10, Bytes<32>>(paths[i]))) || !u,
+    assert(attestations.checkRoot(disclose(merkleTreePathRoot<10, Bytes<32>>(paths[i]))),
       "attestation is not live in the registry");
   }
 
-  // No record may be counted twice. Slots are compared pairwise on their
-  // commitments, which is meaningful only when both slots are in use.
-  assert(!(used[0] && used[1]) || atts[0].nonce != atts[1].nonce, "duplicate attestation");
-  assert(!(used[0] && used[2]) || atts[0].nonce != atts[2].nonce, "duplicate attestation");
-  assert(!(used[0] && used[3]) || atts[0].nonce != atts[3].nonce, "duplicate attestation");
-  assert(!(used[1] && used[2]) || atts[1].nonce != atts[2].nonce, "duplicate attestation");
-  assert(!(used[1] && used[3]) || atts[1].nonce != atts[3].nonce, "duplicate attestation");
-  assert(!(used[2] && used[3]) || atts[2].nonce != atts[3].nonce, "duplicate attestation");
-
-  // Compact has no mutable locals, so the fold is written out as a chain of
-  // bindings. Four slots, four terms.
-  const t0 = slotOnTime(atts[0], used[0]);
-  const t1 = (t0 + slotOnTime(atts[1], used[1])) as Uint<32>;
-  const t2 = (t1 + slotOnTime(atts[2], used[2])) as Uint<32>;
-  const t3 = (t2 + slotOnTime(atts[3], used[3])) as Uint<32>;
-
-  assert(t3 >= minOnTime as Uint<32>, "insufficient on-time repayments");
+  // One summary per lender: reissuing a cumulative snapshot with a new nonce
+  // cannot cause the same lender's repayments to contribute twice.
+  assert(!(used[0] && used[1]) || atts[0].lender != atts[1].lender, "multiple summaries from one lender");
+  assert(!(used[0] && used[2]) || atts[0].lender != atts[2].lender, "multiple summaries from one lender");
+  assert(!(used[0] && used[3]) || atts[0].lender != atts[3].lender, "multiple summaries from one lender");
+  assert(!(used[1] && used[2]) || atts[1].lender != atts[2].lender, "multiple summaries from one lender");
+  assert(!(used[1] && used[3]) || atts[1].lender != atts[3].lender, "multiple summaries from one lender");
+  assert(!(used[2] && used[3]) || atts[2].lender != atts[3].lender, "multiple summaries from one lender");
 
   // Burn a nullifier bound to this borrower and this check. It reveals
   // nothing about who they are, and cannot be linked to the nullifier they
@@ -314,8 +380,9 @@ export circuit proveCreditStanding(
   // discloses nothing the verifier did not choose. The margin above the
   // threshold is never written.
   checks.insert(disclose(checkId), CheckResult {
-    minOnTime: disclose(minOnTime),
-    minPeriod: disclose(minPeriod),
+    minOnTime: terms.minOnTime,
+    minPeriod: terms.minPeriod,
+    maxPeriod: terms.maxPeriod,
     nullifier: disclose(nul)
   });
   acceptedCount.increment(1);

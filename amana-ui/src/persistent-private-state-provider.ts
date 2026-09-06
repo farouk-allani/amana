@@ -103,9 +103,7 @@ export const persistentPrivateStateProvider = <
     try {
       return decodePrivateState<Record<string, unknown>>(raw);
     } catch {
-      // A corrupt blob must not brick the wallet on every subsequent load.
-      console.warn('Amana: discarding unreadable private state for', address);
-      return {};
+      throw new Error('Amana: private state is unreadable. Restore a backup; the stored data has been preserved.');
     }
   };
 

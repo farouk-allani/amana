@@ -1,61 +1,50 @@
-# Wave 1 — what was built, and what comes next
+# Wave 1 progress
 
-**Build period:** 13 August – 2 September 2026.
-**Status:** first submission. Everything below is new work; Amana did not exist before this Wave.
+Working status: 6 September 2026. This is a progress record, not a completed submission.
 
----
+## Event schedule and eligibility
 
-## What shipped
+The [live AKINDO program](https://app.akindo.io/wave-hacks/jaMZjqPOBsLXvjdG) advertises Wave 1 as August 27–September 16, with a submission endpoint of **September 16 at 15:00 UTC / 16:00 Tunis**. Use that as the planning deadline, pending written organizer clarification.
 
-A complete narrow slice, rather than a broad half-built one.
+The linked Official Rules use an older schedule, and their eligibility language differs from the live program's material-extension language. The detailed rubric also differs from the published high-level weights. Organizer confirmation of the controlling deadline, eligible baseline and applicable rubric remains outstanding. No claim that all existing functionality originated during this Wave is made here.
 
-**The contract.** Five circuits in one Compact file: registry bootstrap, lender admission, attestation issuance, revocation, and the threshold proof. Compiles under compiler `0.31.1` / language `0.23.0`. The proving key for `proveCreditStanding` is 19.5 MB; the full build takes about a minute.
+## Material extension implemented September 6
 
-**Private state.** A wallet model in `witnesses.ts` covering the borrower's held credentials, the lender's pending issuance, the selection policy, and the slot-padding rule that keeps every proof the same shape.
+The earlier flow let a borrower supply proof thresholds. Although a careful verifier could detect changed terms, a known check could be consumed using weaker terms. The new flow stores verifier-created terms before proving and binds the response to the intended wallet.
 
-**Tests.** 31, run offline against the compiled circuits with a real ledger and genuinely separate per-actor private state. No mocks and no network.
+- Added `CheckTerms`, `requestedChecks`, verifier-key/request-ID derivation and `createCheck`.
+- Changed `proveCreditStanding` to accept only the committed check ID.
+- Added check-specific borrower response keys to prevent interception by other credential holders.
+- Added deployment-bound authority activation.
+- Replaced last-repayment dates with complete reporting intervals. Both interval bounds must fit the request.
+- Enforced at most one summary per lender to prevent duplicate cumulative snapshots.
+- Made issuance return its actual allocated leaf index.
+- Updated API, four-role UI and version 2 credential import. Old credentials require reissuance.
+- Fixed stale wallet state, live-only selection, malformed inputs and pending-witness cleanup.
+- Added attack regressions and API integration tests, including full public-transcript equality for one versus four contributing records.
+- Added cross-platform build/compile scripts and a pinned GitHub Actions verification workflow.
+- Reworked the demo, privacy explanation and market-validation plan around the implemented behavior.
 
-**Interface.** Four roles — registry, lender, borrower, verifier — over one contract, including a `localStorage`-backed private-state provider so a borrower's credentials survive a page reload.
+## Local evidence
 
-**Documentation.** A README that argues for three design decisions rather than listing features, a demo script, and a privacy analysis that names where the scheme leaks.
+Full Compact compilation generates keys for six circuits under compiler 0.31.1. 40 local contract tests, 23 API integration tests, all-workspace type-checking and the full production build pass. Built API/contract package exports load successfully.
 
----
+These are local results. Runtime tests simulate ledger execution; API tests simulate providers and finalization. They are not evidence of public-network acceptance or cryptographic proof generation during tests. The new GitHub workflow has not run remotely. A Chrome smoke exercise of all four role views using synthetic API data passed with no page errors; this is not a live wallet test or part of hosted CI.
 
-## Decisions made this Wave
+Browser bundles still emit upstream browser-module and size warnings. The browser provider explicitly supplies native WebSocket. Live wallet/indexer/prover interaction remains to be rehearsed.
 
-**Aggregation was pulled forward.** The original plan put multi-lender aggregation in Wave 2. Building it in Wave 1 turned out to cost little beyond a fixed slot count, and it is the thing that makes the product legible in one sentence — so Wave 1 proves across up to four attestations from any number of institutions. What stayed behind is the *distinct lender count*, which is a materially stronger claim and needs its own machinery.
+## Required before submission
 
-**Revocation moved from a list to the tree.** Overwriting a leaf turned out to be both simpler and strictly more private than a revoked-commitment set, and it forced the choice of a plain `MerkleTree` over `HistoricMerkleTree` — which is the more interesting design decision of the two.
+1. Obtain organizer clarification, complete individual registration and retain confirmation.
+2. Publish the Apache-2.0 repository when authorized; include mandatory `midnightntwrk` and relevant project topics.
+3. Verify on a clean Linux clone and run the hosted CI workflow.
+4. Deploy the version 2 contract on the organizer-recommended network and capture reproducible transaction evidence.
+5. Record the real two-lender demo; create a visual deck from the current outline.
+6. Complete initial institutional discovery and distinguish observations from assumptions.
+7. Verify every public link and submit the exact in-Wave change summary before the controlling deadline.
 
-**Per-lender pseudonyms were not in the original sketch.** They emerged from taking the threat model seriously: a single borrower identifier hands colluding institutions exactly the linkage the product exists to prevent.
+## Later priorities
 
----
+Wave 2 candidates: encrypted storage and recovery, larger-tree benchmarks or sharding, issuance batching, issuer governance, and privately proving a minimum distinct-lender count. Pairwise lender distinctness already exists in version 2; a minimum-count claim is still absent.
 
-## Wave 2 (13 September – 3 October)
-
-**Distinct lender count.** Prove "at least *N* on-time repayments across at least *M* different institutions" without revealing which. Materially harder than the current total: it needs pairwise-distinctness over the private lender field, and it is the claim a real underwriter actually wants, because concentration risk is the thing a bare total hides.
-
-**Decentralise the registry.** The authority is currently one key. Replace it with a threshold of admitted institutions, so admitting a dishonest lender requires collusion rather than one compromised key.
-
-**Issuance without a live lender.** Today a lender must transact to issue. Batch issuance — one transaction committing many attestations — is what an MFI with 40,000 borrowers would actually need, and it changes the cost model from per-borrower to per-cycle.
-
-**Timing mitigation.** The clearest remaining leak is that answering a check is a visible transaction at a visible moment. Batching or a submission delay would break the correlation.
-
-**Encryption at rest** for the borrower's wallet, with a passphrase.
-
-## Wave 3 (13 October – 2 November)
-
-**Banded disclosure.** Prove a total falls in a range rather than clearing a verifier-chosen number, closing the binary-search leak described in `PRIVACY.md`.
-
-**Verifier view keys.** Let a borrower grant one verifier a richer, still-bounded view — a specific institution's record, say — without opening the rest.
-
-**A letter of interest from a real MFI.** Worth more than any code written in week twelve, and the only item on this roadmap that cannot be finished by working harder.
-
----
-
-## Honest gaps at the end of Wave 1
-
-- **Not yet deployed to a public network.** Everything runs against the compiled circuits and a local proof server; the contract has not been submitted to `preview` or `preprod`, which needs a funded wallet.
-- **Four attestations per proof** is a compile-time constant.
-- **A lender can issue an inaccurate record.** The circuit enforces internal consistency, not truth. That is what registry admission is for.
-- **No CLI.** The browser interface is the only way to drive a live network today.
+Wave 3 candidates: policy-banded disclosure, carefully scoped verifier view keys, integration evaluation, and a written institutional expression of interest. Customer discovery starts now. Later-Wave dates remain subject to the organizer's controlling schedule.

@@ -45,13 +45,14 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
     if (!api) return;
     const sub = api.state$.subscribe({
       next: setState,
-      error: (e: unknown) => logger.error({ stateError: describe(e) }),
+      error: (e: unknown) => { logger.error({ stateError: describe(e) }); setState(null); setSession({ k: 'failed', error: describe(e) }); },
     });
     return () => sub.unsubscribe();
   }, [api, logger]);
 
   const start = useCallback(
     async (mode: 'deploy' | 'join') => {
+      setState(null);
       setSession({ k: 'connecting', what: mode === 'deploy' ? 'Deploying a registry' : 'Joining' });
       try {
         const providers = await initialiseProviders(networkId, logger);
@@ -175,7 +176,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
           Amana — Midnight Buildathon, Wave 1. Apache-2.0. <code>{networkId}</code>
         </span>
         <span>
-          Amounts, terms and lender identities never leave this device.
+          Repayment summaries stay off chain. This demo stores private state unencrypted in your browser.
         </span>
       </footer>
     </div>

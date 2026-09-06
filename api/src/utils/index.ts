@@ -1,135 +1,78 @@
-// Amana — portable private credit history.
 // Copyright (C) 2026 the Amana authors.
 // SPDX-License-Identifier: Apache-2.0
-
-/**
- * Small helpers shared by the Amana front ends.
- *
- * @module
- */
-
-/** Cryptographically random bytes, for nonces and check identifiers. */
-export const randomBytes = (length: number): Uint8Array => {
-  const bytes = new Uint8Array(length);
-  crypto.getRandomValues(bytes);
-  return bytes;
-};
-
-/** A fresh check identifier for a verifier to hand a borrower. */
-export const newCheckId = (): string => bytesToHex(randomBytes(32));
-
-export const bytesToHex = (b: Uint8Array): string =>
-  Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
-
+import type { Attestation } from '../../../contract/src/index.js';
+export const randomBytes = (length: number): Uint8Array => crypto.getRandomValues(new Uint8Array(length));
+export const bytesToHex = (bytes: Uint8Array): string =>
+  Array.from(bytes, (x) => x.toString(16).padStart(2, '0')).join('');
+export const isHex32 = (value: string): boolean => /^(?:0x)?[0-9a-fA-F]{64}$/.test(value);
 export const hexToBytes = (hex: string): Uint8Array => {
+  if (typeof hex !== 'string') throw new Error('Expected hexadecimal text.');
   const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
-  if (clean.length % 2 !== 0) throw new Error('Amana: hex string has odd length');
-  const out = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    out[i] = Number.parseInt(clean.slice(i * 2, i * 2 + 2), 16);
-  }
-  return out;
+  if (!/^(?:[0-9a-fA-F]{2})*$/.test(clean)) throw new Error('Invalid hexadecimal text.');
+  return Uint8Array.from(clean.match(/../g) ?? [], (byte) => parseInt(byte, 16));
 };
-
-/**
- * The current period index: whole months since 1970-01.
- *
- * Attestations record *when* a borrower last repaid, at month granularity.
- * Months rather than days because a day-precise timestamp on a credit record
- * is a needlessly sharp correlation handle, and no lending decision turns on
- * it.
- */
-export const currentPeriod = (now: Date = new Date()): bigint =>
+export const keyBytes = (value: string): Uint8Array => {
+  if (!isHex32(value)) throw new Error('Expected a 32-byte hexadecimal key.');
+  return hexToBytes(value);
+};
+export const uint = (value: unknown, bits: number, label = 'Value'): bigint => {
+  if ((typeof value !== 'bigint' && typeof value !== 'string') || !/^\d+$/.test(String(value)))
+    throw new Error(label + ' must be a non-negative whole number.');
+  const n = BigInt(value);
+  if (n >= 2n ** BigInt(bits)) throw new Error(label + ' is too large.');
+  return n;
+};
+/** Safe for partially edited form fields; never throws during rendering. */
+export const parseUint = (value: string, bits = 16): bigint | null => {
+  try { return uint(value, bits); } catch { return null; }
+};
+export const currentPeriod = (now = new Date()): bigint =>
   BigInt((now.getUTCFullYear() - 1970) * 12 + now.getUTCMonth());
-
-/** The period index `months` ago, for building a recency window. */
-export const periodsAgo = (months: number, now: Date = new Date()): bigint =>
-  currentPeriod(now) - BigInt(months);
-
-/**
- * A credential: what a lender hands a borrower after issuing.
- *
- * This blob is the entire credential. It is not a pointer to a record held on
- * a server somewhere — it *is* the record, and once the borrower has it, the
- * issuing lender has no further say over who sees it. That is the whole point
- * of the design, and it is why the transport is deliberately unspecified:
- * paste it, scan it, email it, print it.
- */
+export const periodsAgo = (months: number, now = new Date()): bigint => currentPeriod(now) - BigInt(months);
+export const formatPeriod = (period: bigint): string => {
+  const n = Number(period);
+  return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][n % 12]
+    + ' ' + (1970 + Math.floor(n / 12));
+};
+export const validateAttestation = (a: Attestation): void => {
+  for (const key of [a.lender, a.subject, a.nonce]) {
+    if (!(key instanceof Uint8Array) || key.length !== 32) throw new Error('Invalid credential key.');
+  }
+  uint(a.onTime, 16, 'On-time count'); uint(a.total, 16, 'Total count');
+  uint(a.periodStart, 32, 'Start month'); uint(a.periodEnd, 32, 'End month');
+  if (a.onTime > a.total) throw new Error('On-time repayments cannot exceed total repayments.');
+  if (a.periodStart > a.periodEnd) throw new Error('The reporting interval is reversed.');
+};
 export type Credential = {
-  readonly v: 1;
-  readonly lenderName: string;
-  readonly leafIndex: string;
-  readonly attestation: {
-    lender: string;
-    subject: string;
-    onTime: string;
-    total: string;
-    period: string;
-    nonce: string;
-  };
+  v: 2; contractAddress: string; lenderName: string; leafIndex: string;
+  attestation: { lender: string; subject: string; onTime: string; total: string;
+    periodStart: string; periodEnd: string; nonce: string };
 };
-
-type AttestationLike = {
-  lender: Uint8Array;
-  subject: Uint8Array;
-  onTime: bigint;
-  total: bigint;
-  period: bigint;
-  nonce: Uint8Array;
-};
-
-export const encodeCredential = (
-  attestation: AttestationLike,
-  leafIndex: bigint,
-  lenderName: string,
-): string => {
+export const encodeCredential = (a: Attestation, leafIndex: bigint, lenderName: string, contractAddress: string): string => {
+  validateAttestation(a);
   const credential: Credential = {
-    v: 1,
-    lenderName,
-    leafIndex: leafIndex.toString(),
-    attestation: {
-      lender: bytesToHex(attestation.lender),
-      subject: bytesToHex(attestation.subject),
-      onTime: attestation.onTime.toString(),
-      total: attestation.total.toString(),
-      period: attestation.period.toString(),
-      nonce: bytesToHex(attestation.nonce),
-    },
+    v: 2, contractAddress, lenderName, leafIndex: leafIndex.toString(),
+    attestation: { lender: bytesToHex(a.lender), subject: bytesToHex(a.subject),
+      onTime: a.onTime.toString(), total: a.total.toString(), periodStart: a.periodStart.toString(),
+      periodEnd: a.periodEnd.toString(), nonce: bytesToHex(a.nonce) },
   };
   return JSON.stringify(credential, null, 2);
 };
-
-export const decodeCredential = (
-  text: string,
-): { attestation: AttestationLike; leafIndex: bigint; lenderName: string } => {
-  let parsed: Credential;
-  try {
-    parsed = JSON.parse(text) as Credential;
-  } catch {
-    throw new Error('That does not look like a credential — expected the JSON your lender gave you.');
-  }
-  if (parsed?.v !== 1 || !parsed.attestation) {
-    throw new Error('Unrecognised credential format.');
-  }
-  const a = parsed.attestation;
-  return {
-    lenderName: parsed.lenderName ?? 'Unnamed institution',
-    leafIndex: BigInt(parsed.leafIndex),
-    attestation: {
-      lender: hexToBytes(a.lender),
-      subject: hexToBytes(a.subject),
-      onTime: BigInt(a.onTime),
-      total: BigInt(a.total),
-      period: BigInt(a.period),
-      nonce: hexToBytes(a.nonce),
-    },
+export const decodeCredential = (text: string): {
+  contractAddress: string; attestation: Attestation; leafIndex: bigint; lenderName: string;
+} => {
+  let p: Credential;
+  try { p = JSON.parse(text) as Credential; } catch { throw new Error('Expected the credential JSON supplied by your lender.'); }
+  if (p?.v !== 2 || !p.attestation) throw new Error('Version 2 credential required. Older summaries need reissuance with a reporting interval.');
+  if (typeof p.contractAddress !== 'string' || !isHex32(p.contractAddress)) throw new Error('Missing or invalid registry address.');
+  if (typeof p.lenderName !== 'string' || p.lenderName.length > 160) throw new Error('Invalid institution label.');
+  const a = p.attestation;
+  const attestation: Attestation = {
+    lender: keyBytes(a.lender), subject: keyBytes(a.subject), nonce: keyBytes(a.nonce),
+    onTime: uint(a.onTime, 16), total: uint(a.total, 16),
+    periodStart: uint(a.periodStart, 32), periodEnd: uint(a.periodEnd, 32),
   };
-};
-
-/** Render a period index as a human-readable month. */
-export const formatPeriod = (period: bigint): string => {
-  const total = Number(period);
-  const year = 1970 + Math.floor(total / 12);
-  const month = total % 12;
-  return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month]} ${year}`;
+  validateAttestation(attestation);
+  const leafIndex = uint(p.leafIndex, 10, 'Leaf index');
+  return { contractAddress: p.contractAddress, attestation, leafIndex, lenderName: p.lenderName };
 };

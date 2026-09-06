@@ -1,374 +1,260 @@
-// Amana — portable private credit history.
 // Copyright (C) 2026 the Amana authors.
 // SPDX-License-Identifier: Apache-2.0
-
 import { describe, it, expect } from 'vitest';
 import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { AmanaSimulator } from './amana-simulator.js';
-import { checkId, randomBytes, toHex } from './utils.js';
+import { checkId, toHex } from './utils.js';
 import { pureCircuits } from '../managed/amana/contract/index.js';
-import { selectAttestations, provableTotal, type StoredAttestation } from '../witnesses.js';
-
+import { isLiveAttestation, selectAttestations, provableTotal } from '../witnesses.js';
 setNetworkId('undeployed');
-
-// Period indices are months since a fixed epoch. `NOW` stands in for the
-// month a test runs in; a 24-month recency window is `NOW - 24`.
-const NOW = 320n;
-const TWO_YEARS = NOW - 24n;
-
-/** A registry with an authority and two registered microfinance institutions. */
-const registryWithLenders = (...lenders: string[]): AmanaSimulator => {
-  const sim = new AmanaSimulator('authority');
-  sim.as('authority').claimAuthority();
-  for (const lender of lenders) {
-    sim.as('authority').registerLender(sim.lenderKeyOf(lender));
-  }
-  return sim;
+const NOW = 680n, FLOOR = NOW - 23n;
+const record = (onTime = 14n, periodStart = FLOOR, periodEnd = NOW) =>
+  ({ onTime, total: onTime, periodStart, periodEnd });
+const setup = (...lenders: string[]) => {
+  const s = new AmanaSimulator();
+  s.claimAuthority();
+  for (const l of lenders) s.registerLender(s.lenderKeyOf(l));
+  return s;
 };
+const request = (s: AmanaSimulator, n = 'check', borrower = 'amina', threshold = 14n) =>
+  s.as('verifier').createCheck(checkId(n), borrower, threshold, FLOOR, NOW);
 
-describe('registry governance', () => {
-  it('gives the registry to whoever claims it first', () => {
-    const sim = new AmanaSimulator('authority');
-    const led = sim.as('authority').claimAuthority();
-    expect(led.bootstrapped).toBe(true);
-    expect(toHex(led.authority)).toEqual(toHex(sim.lenderKeyOf('authority')));
+describe('deployment and issuing authority', () => {
+  it('commits authority at deployment and rejects a front-run claim', () => {
+    const s = new AmanaSimulator();
+    expect(s.getLedger().protocolVersion).toBe(2n);
+    expect(() => s.as('stranger').claimAuthority()).toThrow('only the deployment authority');
+    expect(s.as('authority').claimAuthority().bootstrapped).toBe(true);
   });
-
-  it('refuses a second claim', () => {
-    const sim = new AmanaSimulator('authority');
-    sim.as('authority').claimAuthority();
-    expect(() => sim.as('usurper').claimAuthority()).toThrow(
-      'failed assert: registry already has an authority',
-    );
+  it('refuses activation twice', () => {
+    const s = setup();
+    expect(() => s.claimAuthority()).toThrow('already has an authority');
   });
-
-  it('will not register a lender before an authority exists', () => {
-    const sim = new AmanaSimulator('authority');
-    expect(() => sim.as('authority').registerLender(sim.lenderKeyOf('enda'))).toThrow(
-      'failed assert: registry has no authority yet',
-    );
+  it('requires activation before lender admission', () => {
+    const s = new AmanaSimulator();
+    expect(() => s.registerLender(s.lenderKeyOf('A'))).toThrow('registry has no authority');
   });
-
-  it('lets only the authority admit lenders', () => {
-    const sim = new AmanaSimulator('authority');
-    sim.as('authority').claimAuthority();
-    expect(() => sim.as('impostor').registerLender(sim.lenderKeyOf('impostor'))).toThrow(
-      'failed assert: only the authority may register lenders',
-    );
+  it('restricts lender admission to the authority', () => {
+    const s = setup();
+    expect(() => s.as('stranger').registerLender(s.lenderKeyOf('A'))).toThrow('only the authority');
   });
-
-  it('admits a lender to the issuing set', () => {
-    const sim = registryWithLenders('enda');
-    expect(sim.getLedger().lenders.member(sim.lenderKeyOf('enda'))).toBe(true);
-    expect(sim.getLedger().lenders.member(sim.lenderKeyOf('stranger'))).toBe(false);
+  it('issues a commitment at the returned live index', () => {
+    const s = setup('A');
+    const a = s.as('A').issueTo('amina', record());
+    const l = s.getLedger();
+    expect(l.issuedCount).toBe(1n);
+    expect(toHex(l.issuers.lookup(0n))).toBe(toHex(s.lenderKeyOf('A')));
+    expect(isLiveAttestation(l, s.walletOf('amina')[0])).toBe(true);
+    expect(l.attestations.findPathForLeaf(pureCircuits.attestationCommitment(a))).toBeDefined();
   });
-});
-
-describe('issuance', () => {
-  it('records a commitment and nothing else', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 14n, total: 14n, period: NOW - 1n });
-
-    const led = sim.getLedger();
-    expect(led.issuedCount).toEqual(1n);
-    expect(led.nextLeaf).toEqual(1n);
-    expect(led.issuers.member(0n)).toBe(true);
-    expect(toHex(led.issuers.lookup(0n))).toEqual(toHex(sim.lenderKeyOf('enda')));
+  it('rejects unregistered issuers', () => {
+    const s = setup();
+    expect(() => s.as('A').issueTo('amina', record())).toThrow('not a registered lender');
   });
-
-  it('refuses an unregistered institution', () => {
-    const sim = registryWithLenders('enda');
-    expect(() =>
-      sim.as('loanshark').issueTo('amina', { onTime: 99n, total: 99n, period: NOW }),
-    ).toThrow('failed assert: not a registered lender');
+  it('rejects impersonated issuer keys', () => {
+    const s = setup('A', 'B');
+    const a = s.as('A').issueTo('amina', record());
+    expect(() => s.as('B').issueRaw(a)).toThrow('not bound to the issuing lender');
   });
-
-  it('refuses an on-time count larger than the number of repayments', () => {
-    const sim = registryWithLenders('enda');
-    expect(() =>
-      sim.as('enda').issueTo('amina', { onTime: 15n, total: 14n, period: NOW }),
-    ).toThrow('failed assert: on-time repayments exceed total repayments');
+  it('rejects inflated counts', () => {
+    const s = setup('A');
+    expect(() => s.as('A').issueTo('amina', { ...record(), total: 1n })).toThrow('on-time repayments exceed');
   });
-
-  it('refuses a record a lender tried to attribute to a different lender', () => {
-    const sim = registryWithLenders('enda', 'taysir');
-    // `enda` signs the transaction, but the record names `taysir` as issuer.
-    const forged = {
-      lender: sim.lenderKeyOf('taysir'),
-      subject: sim.subjectIdOf('amina', 'taysir'),
-      onTime: 20n,
-      total: 20n,
-      period: NOW,
-      nonce: randomBytes(32),
-    };
-    expect(() => sim.as('enda').issueRaw(forged)).toThrow(
-      'failed assert: attestation is not bound to the issuing lender',
-    );
-  });
-
-  it('never writes an amount, a term, or a subject to the ledger', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 14n, total: 14n, period: NOW - 1n });
-
-    // The full public state, serialised. If any private field leaked into the
-    // ledger it would have to appear here.
-    const led = sim.getLedger();
-    const publicView = JSON.stringify(
-      {
-        authority: toHex(led.authority),
-        bootstrapped: led.bootstrapped,
-        lenders: [...led.lenders].map(toHex),
-        issuers: [...led.issuers].map(([k, v]) => [k.toString(), toHex(v)]),
-        nextLeaf: led.nextLeaf.toString(),
-        nullifiers: [...led.nullifiers].map(toHex),
-        checks: [...led.checks].map(([k]) => toHex(k)),
-        issuedCount: led.issuedCount.toString(),
-        revokedCount: led.revokedCount.toString(),
-        acceptedCount: led.acceptedCount.toString(),
-      },
-      null,
-      0,
-    );
-
-    const record = sim.walletOf('amina')[0]!.attestation;
-    // The borrower's pseudonym at this lender is private state, not ledger state.
-    expect(publicView).not.toContain(toHex(record.subject));
-    expect(publicView).not.toContain(toHex(record.nonce));
-    // And the tree stores the commitment, never the preimage.
-    expect(publicView).not.toContain(toHex(pureCircuits.attestationCommitment(record)));
+  it('rejects reversed reporting intervals', () => {
+    const s = setup('A');
+    expect(() => s.as('A').issueTo('amina', record(14n, NOW, FLOOR))).toThrow('invalid reporting interval');
   });
 });
 
-describe('proving a credit standing', () => {
-  it('clears a bar it exactly meets', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 14n, total: 14n, period: NOW - 1n });
-
-    const id = checkId('taysir-loan-1');
-    const led = sim.as('amina').proveCreditStanding(id, 14n, TWO_YEARS);
-
-    expect(led.acceptedCount).toEqual(1n);
-    expect(led.checks.member(id)).toBe(true);
-    expect(led.checks.lookup(id).minOnTime).toEqual(14n);
+describe('verifier-owned immutable checks', () => {
+  it('rejects nonexistent checks without consuming a result', () => {
+    const s = setup('A'), id = checkId('absent');
+    expect(() => s.as('amina').proveCreditStanding(id)).toThrow('check does not exist');
+    expect(s.getLedger().acceptedCount).toBe(0n);
   });
-
-  it('fails one repayment short of the bar', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 13n, total: 14n, period: NOW - 1n });
-
-    expect(() =>
-      sim.as('amina').proveCreditStanding(checkId('short'), 14n, TWO_YEARS),
-    ).toThrow('failed assert: insufficient on-time repayments');
+  it('rejects squatting a known verifier ID even with its nonce', () => {
+    const s = setup();
+    const nonce = checkId('nonce');
+    const id = pureCircuits.requestId(pureCircuits.verifierKey(s.secretKeyOf('verifier')), nonce);
+    const recipient = pureCircuits.checkRecipient(s.secretKeyOf('amina'), id);
+    expect(() => s.as('attacker').createCheckRaw(id, nonce, recipient, 1n, 0n, NOW)).toThrow('not owned by this verifier');
+    s.as('verifier').createCheckRaw(id, nonce, recipient, 14n, FLOOR, NOW);
+    expect(s.getLedger().requestedChecks.lookup(id).minOnTime).toBe(14n);
   });
-
-  it('adds up records from institutions that cannot see each other', () => {
-    const sim = registryWithLenders('enda', 'taysir');
-    sim.as('enda').issueTo('amina', { onTime: 8n, total: 8n, period: NOW - 2n });
-    sim.as('taysir').issueTo('amina', { onTime: 6n, total: 7n, period: NOW - 1n });
-
-    const led = sim.as('amina').proveCreditStanding(checkId('third-lender'), 14n, TWO_YEARS);
-    expect(led.acceptedCount).toEqual(1n);
+  it('does not permit the owner to rewrite committed terms', () => {
+    const s = setup(), id = request(s);
+    expect(() => s.createCheckRaw(id, checkId('check'), s.getLedger().requestedChecks.lookup(id).recipient, 1n, 0n, NOW)).toThrow('check already exists');
+    expect(s.getLedger().requestedChecks.lookup(id).minOnTime).toBe(14n);
   });
-
-  it('rejects a record older than the verifier is willing to accept', () => {
-    const sim = registryWithLenders('enda');
-    // Repaid, but the last repayment was more than two years ago.
-    sim.as('enda').issueTo('amina', { onTime: 20n, total: 20n, period: NOW - 30n });
-
-    expect(() =>
-      sim.as('amina').proveCreditStanding(checkId('stale'), 14n, TWO_YEARS),
-    ).toThrow(/outside the recency window|insufficient on-time repayments/);
+  it('rejects zero thresholds that would allow empty proofs', () => {
+    const s = setup();
+    expect(() => request(s, 'zero', 'amina', 0n)).toThrow('threshold must be positive');
   });
-
-  it('will not let a borrower present another borrower\'s record', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 20n, total: 20n, period: NOW });
-
-    // Youssef obtains a copy of Amina's record — the exact bytes, and its real
-    // leaf index. It is committed on chain and perfectly valid. It is simply
-    // not his.
-    const aminas = sim.walletOf('amina')[0]!;
-    sim.deliver('youssef', aminas.attestation, aminas.leafIndex, 'enda');
-
-    expect(() =>
-      sim.as('youssef').proveCreditStanding(checkId('theft'), 14n, TWO_YEARS),
-    ).toThrow('failed assert: attestation was not issued to this borrower');
+  it('rejects zero recipient keys', () => {
+    const s = setup(), nonce = checkId('zero');
+    const id = pureCircuits.requestId(pureCircuits.verifierKey(s.getPrivateState().secretKey), nonce);
+    expect(() => s.createCheckRaw(id, nonce, new Uint8Array(32), 1n, FLOOR, NOW)).toThrow('recipient key must not be zero');
   });
-
-  it('will not count one record twice', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 8n, total: 8n, period: NOW });
-
-    // An honest client would never do this, so the test reaches past it.
-    expect(() =>
-      sim
-        .as('amina')
-        .proveWithSelection(checkId('double'), 16n, TWO_YEARS, [0n, 0n]),
-    ).toThrow(/duplicate attestation|insufficient on-time repayments/);
+  it('rejects reversed check windows', () => {
+    const s = setup();
+    expect(() => s.createCheck(checkId('reverse'), 'amina', 1n, NOW, FLOOR)).toThrow('invalid check window');
   });
-
-  it('cannot prove anything from an empty wallet', () => {
-    const sim = registryWithLenders('enda');
-    expect(() =>
-      sim.as('nobody').proveCreditStanding(checkId('empty'), 1n, TWO_YEARS),
-    ).toThrow('failed assert: insufficient on-time repayments');
+  it.each([-1n, 65536n])('rejects out-of-range thresholds (%s)', (threshold) => {
+    const s = setup();
+    expect(() => request(s, 'bounds', 'amina', threshold)).toThrow();
   });
-
-  it('records the bar that was cleared, never the margin', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 40n, total: 40n, period: NOW });
-
-    const id = checkId('margin');
-    const led = sim.as('amina').proveCreditStanding(id, 14n, TWO_YEARS);
-
-    const result = led.checks.lookup(id);
-    expect(result.minOnTime).toEqual(14n); // the bar
-    expect(result.minOnTime).not.toEqual(40n); // not the true total
+  it('prevents a credentialed observer intercepting a public check', () => {
+    const s = setup('A');
+    s.as('A').issueTo('amina', record());
+    s.as('A').issueTo('attacker', record(50n));
+    const id = request(s);
+    expect(() => s.as('attacker').proveCreditStanding(id)).toThrow('different borrower');
+    expect(s.getLedger().checks.member(id)).toBe(false);
+    expect(s.as('amina').proveCreditStanding(id).checks.member(id)).toBe(true);
+  });
+  it('an empty outsider cannot consume a stronger check', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    const id = request(s);
+    expect(() => s.as('outsider').proveWithSelection(id, [])).toThrow('different borrower');
+    expect(s.getLedger().requestedChecks.lookup(id).minOnTime).toBe(14n);
+    s.as('amina').proveCreditStanding(id);
   });
 });
 
-describe('revocation', () => {
-  it('stops a revoked record from being provable', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 14n, total: 14n, period: NOW });
-
-    // The record proves fine before revocation.
-    sim.as('amina').proveCreditStanding(checkId('before'), 14n, TWO_YEARS);
-
-    sim.as('enda').revokeAttestation(0n);
-    expect(sim.getLedger().revokedCount).toEqual(1n);
-
-    expect(() =>
-      sim.as('amina').proveCreditStanding(checkId('after'), 14n, TWO_YEARS),
-    ).toThrow('failed assert: attestation is not live in the registry');
+describe('private standing proofs', () => {
+  it('aggregates 8 + 6 from two lenders against exact committed terms', () => {
+    const s = setup('A', 'B');
+    s.as('A').issueTo('amina', record(8n)); s.as('B').issueTo('amina', record(6n));
+    const id = request(s), result = s.as('amina').proveCreditStanding(id).checks.lookup(id);
+    expect(result.minOnTime).toBe(14n); expect(result.minPeriod).toBe(FLOOR); expect(result.maxPeriod).toBe(NOW);
+    expect(Object.keys(result).sort()).toEqual(['maxPeriod', 'minOnTime', 'minPeriod', 'nullifier']);
   });
-
-  it('lets only the issuing lender revoke', () => {
-    const sim = registryWithLenders('enda', 'taysir');
-    sim.as('enda').issueTo('amina', { onTime: 14n, total: 14n, period: NOW });
-
-    expect(() => sim.as('taysir').revokeAttestation(0n)).toThrow(
-      'failed assert: only the issuing lender may revoke',
-    );
+  it('records the threshold without disclosing the margin', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record(40n));
+    const id = request(s);
+    expect(s.as('amina').proveCreditStanding(id).checks.lookup(id).minOnTime).toBe(14n);
   });
-
-  it('refuses to revoke a leaf that was never issued', () => {
-    const sim = registryWithLenders('enda');
-    expect(() => sim.as('enda').revokeAttestation(7n)).toThrow(
-      'failed assert: no attestation at that index',
-    );
+  it('fails one repayment short', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record(13n));
+    const id = request(s);
+    expect(() => s.as('amina').proveCreditStanding(id)).toThrow('insufficient on-time');
+    expect(s.getLedger().checks.member(id)).toBe(false);
   });
-
-  it('leaves other borrowers unaffected', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 14n, total: 14n, period: NOW });
-    sim.as('enda').issueTo('youssef', { onTime: 14n, total: 14n, period: NOW });
-
-    sim.as('enda').revokeAttestation(0n); // Amina's
-
-    const led = sim.as('youssef').proveCreditStanding(checkId('unaffected'), 14n, TWO_YEARS);
-    expect(led.acceptedCount).toEqual(1n);
+  it('fails an empty intended borrower', () => {
+    const s = setup(), id = request(s);
+    expect(() => s.as('amina').proveCreditStanding(id)).toThrow('insufficient on-time');
   });
-});
-
-describe('nullifiers', () => {
-  it('stops a borrower answering the same check twice', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 14n, total: 14n, period: NOW });
-
-    const id = checkId('once');
-    sim.as('amina').proveCreditStanding(id, 14n, TWO_YEARS);
-
-    expect(() => sim.as('amina').proveCreditStanding(id, 14n, TWO_YEARS)).toThrow(
-      'failed assert: check has already been answered',
-    );
+  it.each([[FLOOR - 1n, NOW], [FLOOR, NOW + 1n]])('rejects a summary outside either boundary (%s, %s)', (start, end) => {
+    const s = setup('A'); s.as('A').issueTo('amina', record(14n, start, end));
+    const id = request(s);
+    expect(() => s.as('amina').proveWithSelection(id, [0n])).toThrow('outside the check window');
   });
-
-  it('burns a different nullifier for every check', () => {
-    const sim = registryWithLenders('enda');
-    sim.as('enda').issueTo('amina', { onTime: 14n, total: 14n, period: NOW });
-
-    const a = checkId('lender-a');
-    const b = checkId('lender-b');
-    sim.as('amina').proveCreditStanding(a, 14n, TWO_YEARS);
-    sim.as('amina').proveCreditStanding(b, 14n, TWO_YEARS);
-
-    const led = sim.getLedger();
-    const nullA = toHex(led.checks.lookup(a).nullifier);
-    const nullB = toHex(led.checks.lookup(b).nullifier);
-
-    // Two answers by the same person, with nothing on chain linking them.
-    expect(nullA).not.toEqual(nullB);
-    expect(led.nullifiers.size()).toEqual(2n);
-    expect(led.acceptedCount).toEqual(2n);
+  it('does not let a recent final payment make lifetime counts recent', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record(100n, 0n, NOW));
+    const id = request(s);
+    expect(() => s.as('amina').proveCreditStanding(id)).toThrow('insufficient on-time');
+  });
+  it('rejects another borrower credential even on a check addressed to the thief', () => {
+    const s = setup('A'), a = s.as('A').issueTo('amina', record());
+    s.deliver('thief', a, 0n);
+    const id = request(s, 'theft', 'thief');
+    expect(() => s.as('thief').proveWithSelection(id, [0n])).toThrow('not issued to this borrower');
+  });
+  it('rejects modified repayment counts without a matching commitment', () => {
+    const s = setup('A'), a = s.as('A').issueTo('amina', record(1n));
+    s.circuitContext.currentPrivateState = { ...s.as('amina').getPrivateState(), wallet: [{ attestation: { ...a, onTime: 99n, total: 99n }, leafIndex: 0n, lenderName: 'A' }] };
+    const id = request(s);
+    expect(() => s.as('amina').proveWithSelection(id, [0n])).toThrow('not live');
+  });
+  it('rejects counting a leaf twice', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record(8n)); const id = request(s);
+    expect(() => s.as('amina').proveWithSelection(id, [0n, 0n])).toThrow('multiple summaries from one lender');
+  });
+  it('rejects overlapping snapshots from the same lender with different nonces', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record(8n)); s.as('A').issueTo('amina', record(8n));
+    const id = request(s);
+    expect(() => s.as('amina').proveWithSelection(id, [0n, 1n])).toThrow('multiple summaries from one lender');
+    expect(provableTotal(s.walletOf('amina'), FLOOR, NOW)).toBe(8n);
+  });
+  it('accepts independent lenders even if they use the same nonce', () => {
+    const s = setup('A', 'B'), nonce = checkId('shared nonce');
+    s.as('A').issueTo('amina', record(8n), nonce); s.as('B').issueTo('amina', record(6n), nonce);
+    const id = request(s); s.as('amina').proveCreditStanding(id);
+  });
+  it('supports all four slots and caps automatic selection at four lenders', () => {
+    const s = setup('A', 'B', 'C', 'D', 'E');
+    for (const l of ['A', 'B', 'C', 'D', 'E']) s.as(l).issueTo('amina', record(4n));
+    const id = request(s, 'four', 'amina', 16n);
+    s.as('amina').proveCreditStanding(id);
+    expect(selectAttestations(s.walletOf('amina'), 20n, FLOOR, NOW)).toHaveLength(4);
+    expect(provableTotal(s.walletOf('amina'), FLOOR, NOW)).toBe(16n);
   });
 });
 
-describe('unlinkability of borrower pseudonyms', () => {
-  it('shows a different identifier to every lender', () => {
-    const sim = new AmanaSimulator('authority');
-    const atEnda = sim.subjectIdOf('amina', 'enda');
-    const atTaysir = sim.subjectIdOf('amina', 'taysir');
-
-    // Two institutions comparing their customer books learn nothing.
-    expect(toHex(atEnda)).not.toEqual(toHex(atTaysir));
+describe('revocation, selection, and replay', () => {
+  it('rejects a revoked witness but retains a historical accepted check', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    const before = request(s, 'before'); s.as('amina').proveCreditStanding(before);
+    s.as('A').revokeAttestation(0n);
+    const after = request(s, 'after');
+    expect(() => s.as('amina').proveWithSelection(after, [0n])).toThrow('not live');
+    expect(s.getLedger().checks.member(before)).toBe(true);
   });
-
-  it('is stable for the same borrower at the same lender', () => {
-    const sim = new AmanaSimulator('authority');
-    expect(toHex(sim.subjectIdOf('amina', 'enda'))).toEqual(
-      toHex(sim.subjectIdOf('amina', 'enda')),
-    );
+  it('only lets the issuer revoke, once', () => {
+    const s = setup('A', 'B'); s.as('A').issueTo('amina', record());
+    expect(() => s.as('B').revokeAttestation(0n)).toThrow('only the issuing lender');
+    s.as('A').revokeAttestation(0n);
+    expect(() => s.revokeAttestation(0n)).toThrow('no attestation at that index');
   });
-
-  it('distinguishes two borrowers at one lender', () => {
-    const sim = new AmanaSimulator('authority');
-    expect(toHex(sim.subjectIdOf('amina', 'enda'))).not.toEqual(
-      toHex(sim.subjectIdOf('youssef', 'enda')),
-    );
+  it('filters revoked stronger summaries and selects a sufficient live alternative', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record(99n)); s.as('A').issueTo('amina', record());
+    s.as('A').revokeAttestation(0n); const id = request(s);
+    s.as('amina').proveCreditStanding(id);
+    expect(s.getPrivateState().presenting).toEqual([1n]);
+  });
+  it('does not consider the right commitment at the wrong index live', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    expect(isLiveAttestation(s.getLedger(), { ...s.walletOf('amina')[0], leafIndex: 1n })).toBe(false);
+  });
+  it('cannot answer a check twice', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record()); const id = request(s);
+    s.as('amina').proveCreditStanding(id);
+    expect(() => s.proveCreditStanding(id)).toThrow('already been answered');
+  });
+  it('uses distinct check recipients and nullifiers and separate verifier/lender key domains', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    const a = request(s, 'a'), b = request(s, 'b');
+    const ra = s.as('amina').proveCreditStanding(a).checks.lookup(a);
+    const rb = s.as('amina').proveCreditStanding(b).checks.lookup(b);
+    expect(toHex(ra.nullifier)).not.toBe(toHex(rb.nullifier));
+    expect(toHex(s.getLedger().requestedChecks.lookup(a).recipient)).not.toBe(toHex(s.getLedger().requestedChecks.lookup(b).recipient));
+    const sk = s.secretKeyOf('verifier');
+    expect(toHex(pureCircuits.verifierKey(sk))).not.toBe(toHex(pureCircuits.lenderKey(sk)));
+  });
+  it('derives stable per-lender pseudonyms without a shared public borrower key', () => {
+    const s = setup();
+    expect(toHex(s.subjectIdOf('amina', 'A'))).toBe(toHex(s.subjectIdOf('amina', 'A')));
+    expect(toHex(s.subjectIdOf('amina', 'A'))).not.toBe(toHex(s.subjectIdOf('amina', 'B')));
+    expect(toHex(s.subjectIdOf('amina', 'A'))).not.toBe(toHex(s.subjectIdOf('other', 'A')));
   });
 });
 
-describe('selection policy', () => {
-  const stored = (leafIndex: bigint, onTime: bigint, period: bigint): StoredAttestation => ({
-    leafIndex,
-    lenderName: 'test',
-    attestation: {
-      lender: new Uint8Array(32),
-      subject: new Uint8Array(32),
-      onTime,
-      total: onTime,
-      period,
-      nonce: new Uint8Array(32),
-    },
-  });
 
-  it('presents as few records as clear the bar', () => {
-    const wallet = [stored(0n, 10n, NOW), stored(1n, 8n, NOW), stored(2n, 6n, NOW)];
-    // 10 alone clears a bar of 9.
-    expect(selectAttestations(wallet, 9n, TWO_YEARS)).toEqual([0n]);
-    // 10 + 8 are needed for 17.
-    expect(selectAttestations(wallet, 17n, TWO_YEARS)).toEqual([0n, 1n]);
-  });
 
-  it('drops records outside the recency window before choosing', () => {
-    const wallet = [stored(0n, 30n, NOW - 40n), stored(1n, 8n, NOW)];
-    expect(selectAttestations(wallet, 5n, TWO_YEARS)).toEqual([1n]);
-  });
-
-  it('never presents more than the circuit has slots for', () => {
-    const wallet = [
-      stored(0n, 1n, NOW),
-      stored(1n, 1n, NOW),
-      stored(2n, 1n, NOW),
-      stored(3n, 1n, NOW),
-      stored(4n, 1n, NOW),
-    ];
-    expect(selectAttestations(wallet, 99n, TWO_YEARS).length).toBeLessThanOrEqual(4);
-  });
-
-  it('reports what a wallet could prove', () => {
-    const wallet = [stored(0n, 10n, NOW), stored(1n, 8n, NOW - 40n)];
-    expect(provableTotal(wallet, TWO_YEARS)).toEqual(10n);
+describe('public transcript privacy regression', () => {
+  it('has an identical public transcript for one or four records satisfying the same check', () => {
+    const s = setup('A', 'B', 'C', 'D', 'E');
+    s.as('A').issueTo('amina', record(14n));
+    for (const l of ['B', 'C', 'D', 'E']) s.as(l).issueTo('amina', record(4n));
+    const id = request(s);
+    s.as('amina');
+    const base = s.circuitContext;
+    const run = (presenting: bigint[]) => s.contract.impureCircuits.proveCreditStanding({
+      ...base, currentPrivateState: { ...base.currentPrivateState, presenting },
+    }, id).proofData;
+    const one = run([0n]), four = run([1n, 2n, 3n, 4n]);
+    expect(one.publicTranscript).toEqual(four.publicTranscript);
+    expect(one.input).toEqual(four.input);
+    expect(one.privateTranscriptOutputs).not.toEqual(four.privateTranscriptOutputs);
   });
 });
