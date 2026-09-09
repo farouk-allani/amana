@@ -4,7 +4,7 @@
 
 A borrower proves they cleared a repayment bar — *"at least 14 on-time repayments in the last 24 months"* — without revealing which institutions lent to them, how much they borrowed, their real repayment total, or how many records they used. No reusable public identifier for the borrower is ever created.
 
-[![Verify](https://github.com/OWNER/amana/actions/workflows/verify.yml/badge.svg)](https://github.com/OWNER/amana/actions/workflows/verify.yml)
+[![Verify](https://github.com/farouk-allani/amana/actions/workflows/verify.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/verify.yml)
 &nbsp;·&nbsp; Apache-2.0 &nbsp;·&nbsp; Built on [Midnight](https://midnight.network) with Compact 0.23
 
 ---
@@ -121,13 +121,32 @@ Midnight does not support Windows natively; on Windows the compile script invoke
 
 ## Run the application
 
+Amana reads the indexer and proof-server endpoints from the connected wallet's own configuration, so there are no network URLs to set in the app — only the network id, which must match the wallet.
+
+**1. Start a local proof server.** Leave it running.
+
 ```sh
+docker run -p 6300:6300 midnightnetwork/proof-server \
+  -- midnight-proof-server --network preview
+```
+
+**2. Point Lace at it.** Settings » Midnight » proof server » `Local (http://localhost:6300)`. Set the wallet to the **preview** network.
+
+**3. Fund the wallet** from the [preview faucet](https://midnight-tmnight-preview.nethermind.dev/).
+
+**4. Configure and run.**
+
+```sh
+cp amana-ui/.env.example amana-ui/.env.local   # VITE_NETWORK_ID=preview
+npm run compact                                 # if you have not already
 npm run ui
 ```
 
-Requires the Midnight Lace wallet, a funded wallet on your chosen network, and a trusted proof server (reference: 8.1.0). Set `VITE_NETWORK_ID` explicitly to match the wallet.
+**5. Deploy.** Open the app, leave the address field blank, and choose *Deploy a new registry*. Approve in Lace. The registry address appears in the masthead and is remembered for next time; every other actor joins by pasting it.
 
-Proofs are built on the machine that holds the data. The prover URI comes from the wallet — use a local proof server, because a remote prover sees the witnesses.
+Valid network ids are `preview`, `preprod`, `mainnet` and `undeployed`. Note that the retired `testnet-02` endpoints no longer resolve — a wrong id surfaces as an indexer connection failure rather than a clear error.
+
+Proofs are built on the machine that holds the data. The prover URI comes from the wallet, so use the local proof server: a remote prover sees the witnesses.
 
 ## How to evaluate this submission
 

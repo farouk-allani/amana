@@ -13,7 +13,12 @@ import '@midnight-ntwrk/dapp-connector-api';
 
 import App from './App.jsx';
 
-const networkId = (import.meta.env.VITE_NETWORK_ID ?? 'TestNet') as NetworkId;
+// Must match the network the connected Lace wallet is on, or `connect` is
+// refused. Valid ids: 'preview', 'preprod', 'mainnet', 'undeployed'. The old
+// 'TestNet' default named testnet-02, which has been retired — its endpoints
+// no longer resolve, so it failed with a confusing indexer error rather than a
+// clear one.
+const networkId = (import.meta.env.VITE_NETWORK_ID ?? 'preview') as NetworkId;
 setNetworkId(networkId);
 
 const logger = pino.pino({
