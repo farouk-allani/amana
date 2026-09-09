@@ -1,6 +1,8 @@
 # Privacy and trust boundaries
 
-Amana proves a limited positive repayment statement. It does not prove creditworthiness, affordability, absence of debt, a complete credit history, or the truth of an issuer's source data.
+Amana proves one narrow positive statement: *this holder cleared this bar, inside this window, on credentials that are live right now.*
+
+It does not prove creditworthiness, affordability, absence of other debt, a complete credit history, or that an issuer's source data is true. This document states exactly what the design protects, what it does not, and where the trust actually sits — because a privacy product that is vague about its own boundaries is not offering privacy, it is offering the feeling of it.
 
 ## Cryptographic boundaries
 
@@ -8,7 +10,7 @@ The borrower holds one secret. Different domain-separated hashes derive lender-s
 
 The public ledger contains issuer keys and leaf positions, attestation commitments and the current tree, requested thresholds/windows, verifier keys, response keys, results and nullifiers. It does not contain the underlying summary's subject, counts, interval or selected lender identities. Amounts and contractual loan terms are not collected by this credential schema.
 
-The contract knows the private data inside the proving computation. The public ledger receives commitments and disclosed query values; it is inaccurate to say the circuit cannot read the data it proves.
+The circuit itself sees the private data — that is what it computes over. What leaves the proving computation is only the commitments and the values explicitly disclosed to the ledger. "The contract cannot see your data" is a convenient shorthand and a false one; the accurate claim is that nothing beyond the disclosed set reaches the chain or any other party.
 
 ## Committed requests and holder binding
 

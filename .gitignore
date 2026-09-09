@@ -18,8 +18,9 @@ managed/
 logs/
 *.log
 
-# Local Codex handoff/context. Keep project instructions on this machine only.
-/AGENTS.md
+# Internal working notes: deck/video production scripts, demo rehearsal steps,
+# raw market research and agent handoff context. Not part of the submission.
+/.internal/
 
 # environment
 .env

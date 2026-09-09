@@ -115,7 +115,7 @@ body {
   background: var(--ink-800);
   border: 1px solid var(--ink-700);
   border-radius: var(--radius);
-  margin: 28px 0 32px;
+  margin: 28px 0 10px;
   flex-wrap: wrap;
 }
 
@@ -150,6 +150,62 @@ body {
   font-size: 11px;
   opacity: 0.7;
   font-weight: 400;
+}
+
+/* --- protocol strip ------------------------------------------------------ */
+
+/* The check protocol, so a newcomer driving four roles can see where they are.
+   Steps owned by the active role are lit in gold; the rest stay quiet. */
+.protocol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0 0 32px;
+  padding: 0;
+  counter-reset: none;
+}
+.protocol li {
+  flex: 1 1 170px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius-sm);
+  background: var(--ink-850);
+  color: var(--paper-faint);
+  font-size: 12px;
+  line-height: 1.35;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.protocol li .n {
+  flex: none;
+  width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ink-700);
+  color: var(--paper-dim);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.protocol li.mine {
+  color: var(--paper);
+  border-color: var(--gold);
+  background: var(--gold-dim);
+}
+.protocol li.mine .n {
+  background: var(--gold);
+  color: var(--ink-900);
+}
+
+@media (max-width: 720px) {
+  .protocol li {
+    flex-basis: 100%;
+  }
 }
 
 /* --- cards --------------------------------------------------------------- */

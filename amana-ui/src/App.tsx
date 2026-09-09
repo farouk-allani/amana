@@ -18,11 +18,37 @@ const ADDRESS_MEMORY = 'amana:last-contract-address';
 type Role = 'registry' | 'lender' | 'borrower' | 'verifier';
 
 const ROLES: { id: Role; label: string; sub: string }[] = [
-  { id: 'registry', label: 'Registry', sub: 'who may issue' },
-  { id: 'lender', label: 'Lender', sub: 'issue & revoke' },
-  { id: 'borrower', label: 'Borrower', sub: 'hold & prove' },
-  { id: 'verifier', label: 'Verifier', sub: 'ask & read' },
+  { id: 'registry', label: 'Registry Operator', sub: 'admits institutions' },
+  { id: 'lender', label: 'Issuing Institution', sub: 'issues & revokes records' },
+  { id: 'borrower', label: 'Borrower', sub: 'holds credentials, proves' },
+  { id: 'verifier', label: 'Verifying Institution', sub: 'sets terms, reads result' },
 ];
+
+/**
+ * The five-step check protocol, always on screen.
+ *
+ * Each role only ever sees its own two or three steps, so without this strip a
+ * newcomer driving all four roles across browser profiles has no way to tell
+ * where they are in the exchange. Steps belonging to the active role are lit.
+ */
+const PROTOCOL: { who: Role; step: string }[] = [
+  { who: 'verifier', step: 'Verifier drafts a check ID' },
+  { who: 'borrower', step: 'Borrower returns a response key' },
+  { who: 'verifier', step: 'Verifier commits terms on chain' },
+  { who: 'borrower', step: 'Borrower reviews and proves' },
+  { who: 'verifier', step: 'Verifier reads the result' },
+];
+
+const ProtocolStrip: React.FC<{ role: Role }> = ({ role }) => (
+  <ol className="protocol" aria-label="The check protocol">
+    {PROTOCOL.map((p, i) => (
+      <li key={i} className={p.who === role ? 'mine' : ''}>
+        <span className="n">{i + 1}</span>
+        <span className="t">{p.step}</span>
+      </li>
+    ))}
+  </ol>
+);
 
 type Session =
   | { k: 'disconnected' }
@@ -167,6 +193,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
               </button>
             ))}
           </nav>
+          <ProtocolStrip role={role} />
           {state ? body : <Notice kind="info">Reading the registry…</Notice>}
         </>
       )}
