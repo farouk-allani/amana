@@ -1,6 +1,6 @@
 # Go to market
 
-Amana starts in Tunisian microfinance because that is a market with a real, documented gap, a small number of institutions that must be convinced, and — critically — a structural reason the obvious solution has never been built.
+Amana starts in Tunisian microfinance because that is a market with a real, documented gap, a small number of institutions that must be convinced, and, critically, a structural reason the obvious solution has never been built.
 
 ## The market
 
@@ -9,13 +9,15 @@ Amana starts in Tunisian microfinance because that is a market with a real, docu
 | Enda Tamweel | 502,523 | 544,030 | [2024 management report, p. 1](https://www.cmf.tn/sites/default/files/pdfs/emetteurs/informations/rapports-societes/rapport_enda_tamweel_2024.pdf) |
 | Taysir Microfinance | 38,654 | 38,663 | [2024 annual report, p. 9](https://www.cmf.tn/sites/default/files/pdfs/emetteurs/informations/rapports-societes/rapport_taysir_microfinance_2024.pdf) |
 
-Figures are end-2024 and describe those institutions, not Amana's users. Two institutions is not a limitation of the plan — it is the plan. Portability needs exactly one counterparty to become real, and a market with a handful of large players is far easier to reach consensus in than one with hundreds.
+Active-client figures are end-2024 and describe those institutions, not Amana's users. Enda's cumulative reach is larger still: it has served well over a million Tunisians since it began lending, so the pool of people carrying a repayment history worth proving is considerably wider than any single year's active book.
+
+Two institutions is not a limitation of the plan. It is the plan. Portability needs exactly one counterparty to become real, and a market with a handful of large players is far easier to reach consensus in than one with hundreds.
 
 ## How a borrower is assessed today
 
 A Tunisian MFI underwrites a small loan through a branch loan officer. The officer takes the application against the applicant's CIN, runs a query against the **ACM Centrale des Risques de la Microfinance** for existing microfinance exposure, checks bank-sector exposure where relevant, assesses the applicant's activity and guarantor arrangement, and takes the file to a branch-level or committee-level decision.
 
-The central query answers one question well: *how much does this person already owe, and to whom?* Negative and structural information — outstanding contracts, closures, write-offs — is what the system is built to circulate.
+The central query answers one question well: *how much does this person already owe, and to whom?* Negative and structural information (outstanding contracts, closures, write-offs) is what the system is built to circulate.
 
 What it does not put in the officer's hands is a clean, current, portable answer to a different question: *has this person been paying on time, recently, somewhere else?*
 
@@ -33,7 +35,7 @@ For a working-capital loan being decided this week, that is the difference betwe
 
 The technical fix is trivial. A shared table of borrowers and their on-time repayment counts would take an afternoon to specify. It does not exist, and it will not exist, and the reason has nothing to do with engineering.
 
-**An MFI's reliably-repaying clients are its most valuable asset.** They are cheap to serve, they renew, and they are the core of the portfolio. Publishing a list of them — to a regulator's shared system, to a bureau, to a competitor — is publishing an acquisition target list. Every institution understands this, so every institution's answer is the same, and the data stays put.
+**An MFI's reliably-repaying clients are its most valuable asset.** They are cheap to serve, they renew, and they are the core of the portfolio. Publishing a list of them, to a regulator's shared system or a bureau or a competitor, is publishing an acquisition target list. Every institution understands this, so every institution's answer is the same, and the data stays put.
 
 Every non-cryptographic proposal in this space asks an institution to trade competitive information for reciprocity and hope. That trade has been on the table for years and has not been taken.
 
@@ -41,7 +43,7 @@ Every non-cryptographic proposal in this space asks an institution to trade comp
 
 Amana removes the trade entirely.
 
-The issuing institution publishes a **commitment** — an opaque 32-byte hash — and nothing else. No borrower, no amount, no count, no interval. The borrower carries the credential. When a second institution asks a question, the borrower answers *that specific question* with a zero-knowledge proof, and the second institution learns exactly one bit more than it knew before: the bar was cleared.
+The issuing institution publishes a **commitment**, an opaque 32-byte hash, and nothing else. No borrower, no amount, no count, no interval. The borrower carries the credential. When a second institution asks a question, the borrower answers *that specific question* with a zero-knowledge proof, and the second institution learns exactly one bit more than it knew before: the bar was cleared.
 
 What the issuer gives up: nothing.
 What the verifier gains: a current, cryptographically authenticated, issuer-backed fact.
@@ -55,13 +57,13 @@ Three properties make the offer acceptable to an institution that is otherwise s
 
 ## Sequencing
 
-**Beachhead — two Tunisian MFIs, positive-evidence supplement.** The pitch is deliberately narrow: not "replace your underwriting", but "add one current, verified positive signal to a file you are already assembling". Narrow scope means a shorter approval path and no dependency on regulatory change.
+**Beachhead: two Tunisian MFIs, positive-evidence supplement.** The pitch is deliberately narrow: not "replace your underwriting", but "add one current, verified positive signal to a file you are already assembling". Narrow scope means a shorter approval path and no dependency on regulatory change.
 
-**Expansion 1 — MFI to bank graduation.** The strongest microfinance clients eventually seek bank credit and arrive with the same problem in a more expensive form. The proof is unchanged; only the verifier's threshold moves.
+**Expansion 1: MFI to bank graduation.** The strongest microfinance clients eventually seek bank credit and arrive with the same problem in a more expensive form. The proof is unchanged; only the verifier's threshold moves.
 
-**Expansion 2 — Francophone Africa and MENA.** Morocco, Senegal, Côte d'Ivoire and Egypt share the market structure: concentrated MFI sectors, a central risk registry oriented toward exposure rather than behaviour, and the same competitive refusal to pool good-borrower data.
+**Expansion 2: Francophone Africa and MENA.** Morocco, Senegal, Côte d'Ivoire and Egypt share the market structure: concentrated MFI sectors, a central risk registry oriented toward exposure rather than behaviour, and the same competitive refusal to pool good-borrower data.
 
-**Expansion 3 — any market where competitors must trust each other's records.** Buy-now-pay-later providers, telco device financing, utility and rental payment history. The primitive — *prove a threshold earned at a competitor without the competitor disclosing anything* — is not specific to microfinance.
+**Expansion 3: any market where competitors must trust each other's records.** Buy-now-pay-later providers, telco device financing, utility and rental payment history. The primitive, *prove a threshold earned at a competitor without the competitor disclosing anything*, is not specific to microfinance.
 
 ## Business model
 
@@ -69,16 +71,16 @@ The verifier pays, because the verifier receives the value. Issuing is free, and
 
 Two components:
 
-- **Per-verification fee**, benchmarked below the fully-loaded cost of the manual alternative — loan officer and back-office time spent assembling and chasing evidence for a single file. The comparison is against staff hours, not against a software line item, and that is a comfortable margin to price into.
+- **Per-verification fee**, benchmarked below the fully-loaded cost of the manual alternative: loan officer and back-office time spent assembling and chasing evidence for a single file. The comparison is against staff hours, not against a software line item, and that is a comfortable margin to price into.
 - **Institution subscription** covering issuer integration, key management, the registry operator relationship and support.
 
 Borrowers never pay. A credential the borrower must buy is a credential the borrower does not get, and the two-sided network fails at the side that has the least money.
 
 ## Adoption path
 
-The registry authority role is deliberately separable from the institutions. A neutral operator — a sector association, an existing shared-services provider, or the regulator itself — admits issuers without ever seeing a borrower record. That structure means no institution has to trust a competitor to run the infrastructure, and it gives the ACM a natural seat if it wants one.
+The registry authority role is deliberately separable from the institutions. A neutral operator, whether a sector association, an existing shared-services provider, or the regulator itself, admits issuers without ever seeing a borrower record. That structure means no institution has to trust a competitor to run the infrastructure, and it gives the ACM a natural seat if it wants one.
 
-**Amana is a supplement to the Centrale des Risques, never a replacement.** The central registry answers exposure. Amana answers recent positive behaviour. An institution runs both, and the regulatory story is additive rather than competitive — which matters enormously for whether a compliance officer ever signs.
+**Amana is a supplement to the Centrale des Risques, never a replacement.** The central registry answers exposure. Amana answers recent positive behaviour. An institution runs both, and the regulatory story is additive rather than competitive, which matters enormously for whether a compliance officer ever signs.
 
 ## What has to be proven next
 
@@ -89,7 +91,7 @@ Written plainly, because a plan that hides its unknowns is a pitch, not a plan.
 3. **What does "on time" mean institutionally?** Amana currently counts repayments made on or before the due date. Grace periods, partial payments and reschedules need a written policy agreed with risk staff before any number means anything.
 4. **Who moves first?** Two-sided cold start. The likely unlock is a single institution acting as both issuer and verifier across its own branches or products, proving the mechanism internally before a counterparty is required.
 
-The near-term validation plan is synthetic and costs an institution nothing: replay twenty constructed cases — recent payments, late and partial payments, reversals, stale summaries, revocations — against the existing workflow and against an Amana adapter, and measure source-event-to-usable-evidence time on both. No customer data, no production access, no commitment.
+The near-term validation plan is synthetic and costs an institution nothing: replay twenty constructed cases (recent payments, late and partial payments, reversals, stale summaries, revocations) against the existing workflow and against an Amana adapter, and measure source-event-to-usable-evidence time on both. No customer data, no production access, no commitment.
 
 ## Standing and disclosure
 
