@@ -9,11 +9,23 @@
 
 **Portable private repayment history on Midnight.** (Arabic أمانة, "a trust placed in someone's hands.")
 
+<p align="center">
+  <img src="docs/assets/amana-app-showcase.png" alt="Amana borrower and verifier application interfaces showing a private repayment proof" width="1100">
+</p>
+
 A borrower proves they cleared a repayment bar, such as *"at least 14 on-time repayments in the last 24 months"*, without revealing which institutions lent to them, how much they borrowed, their real repayment total, or how many records they used. The protocol creates no reusable public identifier for the borrower.
 
 ---
 
 ## The problem
+
+<p align="center">
+  <a href="https://www.endatamweel.tn/"><img src="docs/assets/enda-tamweel-logo.png" alt="Enda Tamweel" height="76"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.taysir.com.tn/fr/"><img src="docs/assets/taysir-microfinance-logo.png" alt="Taysir Microfinance" height="62"></a>
+</p>
+
+<p align="center"><sub>Market reference institutions for the public 2024 figures below; no partnership or endorsement is implied.</sub></p>
 
 Enda Tamweel reported 502,523 active clients and 544,030 active loans at the end of 2024, and has served well over a million Tunisians across its lifetime. Taysir Microfinance reported 38,654 active clients over the same period. A borrower who repays one of them faithfully for three years walks into the other and is underwritten as a stranger.
 
