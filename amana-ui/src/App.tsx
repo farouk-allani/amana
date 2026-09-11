@@ -7,7 +7,7 @@ import type { Logger } from 'pino';
 
 import { AmanaAPI, type AmanaDerivedState } from '../../api/src/index.js';
 import { initialiseProviders } from './providers.js';
-import { ActionButton, Card, Field, Notice, describe } from './ui.jsx';
+import { ActionButton, Card, Field, Hash, Notice, describe } from './ui.jsx';
 import { RegistryView } from './views/Registry.jsx';
 import { LenderView } from './views/Lender.jsx';
 import { BorrowerView } from './views/Borrower.jsx';
@@ -132,11 +132,11 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
         {api && (
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 12, color: 'var(--paper-faint)', marginBottom: 4 }}>
-              REGISTRY
+              REGISTRY · click to copy
             </div>
-            <div className="hash" style={{ maxWidth: 260 }}>
-              {api.deployedContractAddress}
-            </div>
+            {/* Every other actor joins by pasting this. Shortened for the
+                masthead; a click copies the full address. */}
+            <Hash value={api.deployedContractAddress} />
           </div>
         )}
       </header>

@@ -29,14 +29,6 @@ A borrower proves they cleared a repayment bar, such as *"at least 14 on-time re
 
 ## The problem
 
-<p align="center">
-  <a href="https://www.endatamweel.tn/"><img src="docs/assets/enda-tamweel-logo.png" alt="Enda Tamweel" height="76"></a>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.taysir.com.tn/fr/"><img src="docs/assets/taysir-microfinance-logo.png" alt="Taysir Microfinance" height="62"></a>
-</p>
-
-<p align="center"><sub>Market reference institutions for the public 2024 figures below; no partnership or endorsement is implied.</sub></p>
-
 Enda Tamweel reported 502,523 active clients and 544,030 active loans at the end of 2024, and has served well over a million Tunisians across its lifetime. Taysir Microfinance reported 38,654 active clients over the same period. A borrower who repays one of them faithfully for three years walks into the other and is underwritten as a stranger.
 
 The obvious fix is a shared database of good borrowers. It has been proposed for decades and it does not exist, for a reason that has nothing to do with engineering: an institution's reliable repayers *are* its book. Publishing a list of who pays on time is publishing an acquisition target list for every competitor. No institution will do it, and no amount of database design changes that.
