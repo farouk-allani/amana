@@ -36,6 +36,7 @@ export default defineConfig({
     }),
     viteStaticCopy({
       targets: [
+        { src: '../docs/assets/amana-mark.png', dest: '.' },
         { src: '../contract/src/managed/amana/keys', dest: '.' },
         { src: '../contract/src/managed/amana/zkir', dest: '.' },
         { src: '../contract/src/managed/amana/compiler', dest: '.' },

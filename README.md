@@ -1,5 +1,15 @@
 # Amana
 
+<p align="center">
+  <img src="docs/assets/amana-mark.png" alt="Amana mark" width="82">
+  &nbsp;&nbsp;
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/amana-wordmark-light.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/amana-wordmark-dark.png">
+    <img src="docs/assets/amana-wordmark-dark.png" alt="Amana." width="340">
+  </picture>
+</p>
+
 [![Verify](https://github.com/farouk-allani/amana/actions/workflows/verify.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/verify.yml)
 ![Compact](https://img.shields.io/badge/Compact-0.23-d9a441)
 ![Circuits](https://img.shields.io/badge/circuits-6-4ea882)
