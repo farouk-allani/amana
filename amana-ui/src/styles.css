@@ -116,18 +116,10 @@ body {
   gap: 10px;
 }
 
-.wordmark .brand-mark {
+.wordmark .brand-lockup {
   display: block;
-  width: 64px;
-  height: 54px;
-  object-fit: contain;
-  flex: none;
-}
-
-.wordmark .brand-wordmark {
-  display: block;
-  width: 252px;
-  height: auto;
+  height: 58px;
+  width: auto;
   flex: none;
 }
 
@@ -777,12 +769,8 @@ button.btn.tiny {
   .wordmark {
     gap: 6px;
   }
-  .wordmark .brand-mark {
-    width: 50px;
+  .wordmark .brand-lockup {
     height: 44px;
-  }
-  .wordmark .brand-wordmark {
-    width: 188px;
   }
   .wordmark .arabic {
     font-size: 24px;

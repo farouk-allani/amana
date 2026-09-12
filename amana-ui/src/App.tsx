@@ -12,8 +12,7 @@ import { RegistryView } from './views/Registry.jsx';
 import { LenderView } from './views/Lender.jsx';
 import { BorrowerView } from './views/Borrower.jsx';
 import { VerifierView } from './views/Verifier.jsx';
-import amanaMark from '../../docs/assets/amana-mark.png';
-import amanaWordmark from '../../docs/assets/amana-wordmark-light.png';
+import amanaLockup from '../../docs/assets/amana-lockup-light.png';
 
 const ADDRESS_MEMORY = 'amana:last-contract-address';
 
@@ -122,8 +121,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
           </div>
           <div className="wordmark">
             <h1 className="visually-hidden">Amana</h1>
-            <img className="brand-mark" src={amanaMark} alt="" aria-hidden="true" />
-            <img className="brand-wordmark" src={amanaWordmark} alt="" aria-hidden="true" />
+            <img className="brand-lockup" src={amanaLockup} alt="" aria-hidden="true" />
             <span className="arabic" aria-hidden="true">
               أمانة
             </span>
