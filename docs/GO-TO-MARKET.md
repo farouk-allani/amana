@@ -4,14 +4,20 @@ Amana starts in Tunisian microfinance because that is a market with a real, docu
 
 ## The market
 
-| | Active clients | Active loans | Source |
+Six licensed microfinance companies operate nationally under the [Autorité de Contrôle de la Microfinance](https://www.financini.org.tn/organismList.php?a=t&v=1), alongside a network of smaller microcredit associations.
+
+| Institution | Backing | Reach | Source |
 |---|---|---|---|
-| Enda Tamweel | 502,523 | 544,030 | [2024 management report, p. 1](https://www.cmf.tn/sites/default/files/pdfs/emetteurs/informations/rapports-societes/rapport_enda_tamweel_2024.pdf) |
-| Taysir Microfinance | 38,654 | 38,663 | [2024 annual report, p. 9](https://www.cmf.tn/sites/default/files/pdfs/emetteurs/informations/rapports-societes/rapport_taysir_microfinance_2024.pdf) |
+| Enda Tamweel | Independent, founded 1990, licensed as an SMF in 2015 | 80 branches in all 24 governorates · 502,523 active clients and 544,030 active loans at end-2024 · 1,400+ staff | [2024 report](https://www.cmf.tn/sites/default/files/pdfs/emetteurs/informations/rapports-societes/rapport_enda_tamweel_2024.pdf), [BIO](https://www.bio-invest.be/en/investments/enda-tamweel-1) |
+| Taysir Microfinance | Horchani Group, capital 26.3M DT in 2024 | 38,654 active clients at end-2024 · rural and income-generating projects | [2024 report](https://www.cmf.tn/sites/default/files/pdfs/emetteurs/informations/rapports-societes/rapport_taysir_microfinance_2024.pdf), [Horchani](https://horchani.com/en/diversified-business-sectors-expertise-innovation-excellence/finance-eng/taysir-microfinance-eng/) |
+| Baobab Tunisie | Baobab group (formerly MicroCred) | Individuals and small businesses | [ACM register](https://www.financini.org.tn/organismList.php?a=t&v=1) |
+| CFE Tunisie (DAAM) | AfricInvest and Développement International Desjardins | Small-business lending, DAAM Istethmar and DAAM Auto | [DAAM](https://www.daam.tn/), [AfricInvest](https://www.africinvest.com/portfolio/company/financial-services/cfe-tunisie/) |
+| Advans Tunisie | Advans network, EBRD-supported | MSMEs, youth and digital programmes | [Advans](https://advanstunisie.com/), [EBRD](https://www.ebrd.com/home/news-and-events/news/2026/ebrd-and-advans-tunisie-expand-access-to-finance-for-young-entre.html) |
+| Zitouna Tamkeen | Islamic Development Bank affiliation; first economic-empowerment MFI in the Maghreb | 19 branches and 2 mobile units · around 14,000 projects financed | [IsDB](https://www.isdb.org/economic-empowerment/success-stories/zitouna-tamkeen-1st-economic-empowerment-institution-in-north-africa) |
 
-Active-client figures are end-2024 and describe those institutions, not Amana's users. Enda's cumulative reach is larger still: it has served well over a million Tunisians since it began lending, so the pool of people carrying a repayment history worth proving is considerably wider than any single year's active book.
+These figures describe the institutions, not Amana's users. Enda's cumulative reach is larger than its active book: it has served well over a million Tunisians since it began lending, so the pool of people carrying a repayment history worth proving is considerably wider than any single year's figures.
 
-Two institutions is not a limitation of the plan. It is the plan. Portability needs exactly one counterparty to become real, and a market with a handful of large players is far easier to reach consensus in than one with hundreds.
+Six institutions with overlapping territories is the right shape for this product. Portability needs exactly one counterparty to become real, so any two of the six make the network live, and a market with six national players is far easier to reach consensus in than one with hundreds. Every additional institution that joins raises the value of every credential already issued.
 
 ## How a borrower is assessed today
 
@@ -57,7 +63,7 @@ Three properties make the offer acceptable to an institution that is otherwise s
 
 ## Sequencing
 
-**Beachhead: two Tunisian MFIs, positive-evidence supplement.** The pitch is deliberately narrow: not "replace your underwriting", but "add one current, verified positive signal to a file you are already assembling". Narrow scope means a shorter approval path and no dependency on regulatory change.
+**Beachhead: two of Tunisia's six licensed MFIs, positive-evidence supplement.** The pitch is deliberately narrow: not "replace your underwriting", but "add one current, verified positive signal to a file you are already assembling". Narrow scope means a shorter approval path and no dependency on regulatory change.
 
 **Expansion 1: MFI to bank graduation.** The strongest microfinance clients eventually seek bank credit and arrive with the same problem in a more expensive form. The proof is unchanged; only the verifier's threshold moves.
 
@@ -90,6 +96,8 @@ Written plainly, because a plan that hides its unknowns is a pitch, not a plan.
 2. **Can an issuer produce the summary?** Issuance requires an institution to export on-time repayment counts per borrower per interval from its core system. Feasibility, latency and correction behaviour under rescheduling, partial payment and reversal all need an integration owner's answer.
 3. **What does "on time" mean institutionally?** Amana currently counts repayments made on or before the due date. Grace periods, partial payments and reschedules need a written policy agreed with risk staff before any number means anything.
 4. **Who moves first?** Two-sided cold start. The likely unlock is a single institution acting as both issuer and verifier across its own branches or products, proving the mechanism internally before a counterparty is required.
+5. **Does the credential survive the phone?** Microfinance clients change and lose devices. Today the secret lives in one browser profile, unencrypted; losing it loses the history. A recovery path that does not hand the secret to an institution is a precondition for any real pilot, not a later feature.
+6. **Does a cleared check get misread as an affordability check?** A verifier could treat *cleared* as a green light while the borrower is stacking loans elsewhere. The proof deliberately says nothing about that. Policy has to say so explicitly, and a privacy-preserving stacking signal is a research item for a later Wave, not a promise.
 
 The near-term validation plan is synthetic and costs an institution nothing: replay twenty constructed cases (recent payments, late and partial payments, reversals, stale summaries, revocations) against the existing workflow and against an Amana adapter, and measure source-event-to-usable-evidence time on both. No customer data, no production access, no commitment.
 

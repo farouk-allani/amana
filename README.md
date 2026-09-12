@@ -29,7 +29,9 @@ A borrower proves they cleared a repayment bar, such as *"at least 14 on-time re
 
 ## The problem
 
-Enda Tamweel reported 502,523 active clients and 544,030 active loans at the end of 2024, and has served well over a million Tunisians across its lifetime. Taysir Microfinance reported 38,654 active clients over the same period. A borrower who repays one of them faithfully for three years walks into the other and is underwritten as a stranger.
+Tunisia has six licensed microfinance companies operating nationally: Enda Tamweel, Taysir Microfinance, Baobab Tunisie, CFE Tunisie (DAAM), Advans Tunisie and Zitouna Tamkeen, alongside a network of microcredit associations under the regulator's supervision ([ACM register](https://www.financini.org.tn/organismList.php?a=t&v=1)). Enda alone runs [80 branches across all 24 governorates](https://www.bio-invest.be/en/investments/enda-tamweel-1), reported 502,523 active clients and 544,030 active loans at the end of 2024, and has served well over a million Tunisians across its lifetime. Taysir reported 38,654 active clients over the same period. Zitouna Tamkeen has financed [around 14,000 income-generating projects](https://www.isdb.org/economic-empowerment/success-stories/zitouna-tamkeen-1st-economic-empowerment-institution-in-north-africa) through 19 branches and two mobile units.
+
+Six institutions, overlapping territories, and a borrower who repays one of them faithfully for three years walks into any of the other five and is underwritten as a stranger.
 
 The obvious fix is a shared database of good borrowers. It has been proposed for decades and it does not exist, for a reason that has nothing to do with engineering: an institution's reliable repayers *are* its book. Publishing a list of who pays on time is publishing an acquisition target list for every competitor. No institution will do it, and no amount of database design changes that.
 
@@ -221,9 +223,11 @@ Full analysis in [docs/PRIVACY.md](docs/PRIVACY.md).
 
 ## Roadmap
 
-**Wave 2.** Encrypted private storage with export and recovery. Larger tree or sharding with benchmarks. Issuance batching. Proving a *minimum count of distinct lenders* privately, since pairwise distinctness exists today but a minimum-count claim does not. Issuer governance and lender removal.
+**Wave 2.** Encrypted private storage with export and recovery, including a split-key or social-recovery path so a lost phone does not turn a borrower back into a stranger. Larger tree or sharding with benchmarks. Issuance batching. Proving a *minimum count of distinct lenders* privately, since pairwise distinctness exists today but a minimum-count claim does not. Issuer governance and lender removal.
 
-**Wave 3.** Policy-banded disclosure, scoped verifier view keys, and an integration evaluation against synthetic institutional exports.
+**Wave 2, measured.** Two things the current design pays for and has not yet quantified. First, every issuance or revocation advances the Merkle root, so a proof built against the previous root fails on submission; the failure rate under concurrent issuance needs measuring, and a bounded recent-root window is the candidate fix that keeps revocation meaningful without the full-history acceptance that defeats it. Second, every derived value here (commitments, pseudonyms, nullifiers, response keys) lands in ledger state, so `persistentHash` is the correct primitive, but it is the non-circuit-optimised one and a single proof evaluates it around ten times; proving time on consumer hardware needs a number.
+
+**Wave 3.** Policy-banded disclosure, scoped verifier view keys, and an integration evaluation against synthetic institutional exports. An exploration of a loan-stacking signal: nullifiers are unlinkable by design, so counting a borrower's open checks needs an epoch-scoped construction that trades a bounded amount of unlinkability for it, and whether that trade is acceptable is a question for risk staff, not for the circuit.
 
 ## Ecosystem attribution
 
