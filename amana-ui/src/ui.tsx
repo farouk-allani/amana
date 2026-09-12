@@ -62,7 +62,7 @@ export const Hash: React.FC<{ value: string; full?: boolean }> = ({ value, full 
   return (
     <span
       className="hash"
-      title={`${value} — click to copy`}
+      title={`${value} · click to copy`}
       style={{ cursor: 'pointer' }}
       onClick={() => {
         void navigator.clipboard.writeText(value);

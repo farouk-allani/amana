@@ -66,7 +66,7 @@ export const LenderView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> =
 
       <Card
         title="Issue an attestation"
-        lede="The borrower gives you the pseudonym they generated for your institution specifically. What reaches the chain is a single hash — the counts and dates below are consumed by the circuit as private state and are never transaction inputs."
+        lede="The borrower gives you the pseudonym they generated for your institution specifically. What reaches the chain is a single hash. The counts and dates below are consumed by the circuit as private state and are never transaction inputs."
       >
         <Field
           label="Borrower's pseudonym at your institution"
@@ -101,7 +101,7 @@ export const LenderView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> =
 
         {count !== null && scheduled !== null && count > scheduled && (
           <Notice kind="error">
-            On-time repayments cannot exceed the number scheduled. The circuit enforces this too —
+            On-time repayments cannot exceed the number scheduled. The circuit enforces this too:
             it would reject the transaction.
           </Notice>
         )}
@@ -132,7 +132,7 @@ export const LenderView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> =
       {credential && (
         <Card
           title="Hand this to the borrower"
-          lede="This blob is the credential. It is not a pointer to a record on our server — it is the record. Once the borrower holds it, you cannot see where they present it, and neither can we."
+          lede="This blob is the credential. It is not a pointer to a record on our server. It is the record. Once the borrower holds it, you cannot see where they present it, and neither can we."
         >
           <textarea className="mono" readOnly value={credential} style={{ minHeight: 190 }} />
           <div className="actions">
@@ -151,7 +151,7 @@ export const LenderView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> =
 
       <Card
         title="Issued by this institution"
-        lede="Revoking overwrites the leaf in the attestation tree. Future proofs using this leaf fail; previously accepted checks remain historical results — with nothing published about whose record it was."
+        lede="Revoking overwrites the leaf in the attestation tree. Future proofs using this leaf fail; previously accepted checks remain historical results, with nothing published about whose record it was."
       >
         {mine.length === 0 ? (
           <div className="empty">Nothing issued from this device yet.</div>

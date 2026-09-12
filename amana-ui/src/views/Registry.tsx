@@ -32,7 +32,7 @@ export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }>
 
       <Card
         title="What the chain can see"
-        lede="Amana's split is not a matter of policy or good behaviour. The right-hand column is data the contract is structurally incapable of reading — it exists only as a hash the circuit opens inside a proof."
+        lede="Amana's split is not a matter of policy or good behaviour. The right-hand column is data the contract is structurally incapable of reading. It exists only as a hash the circuit opens inside a proof."
       >
         <div className="split">
           <section className="public">
@@ -61,7 +61,7 @@ export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }>
       {!registry.bootstrapped ? (
         <Card
           title="Activate the registry"
-          lede="This registry has no authority yet. The first key to claim it becomes the operator — the consortium or regulator who decides which institutions may issue attestations. There is no second claim."
+          lede="This registry has no authority yet. The first key to claim it becomes the operator: the consortium or regulator who decides which institutions may issue attestations. There is no second claim."
         >
           <ActionButton
             label="Activate as authority"

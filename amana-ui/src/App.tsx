@@ -116,6 +116,10 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
     <div className="shell">
       <header className="masthead">
         <div>
+          <div className="eyebrow">
+            <span className="dot" aria-hidden="true" />
+            Midnight · {networkId}
+          </div>
           <div className="wordmark">
             <h1 className="visually-hidden">Amana</h1>
             <img className="brand-mark" src={amanaMark} alt="" aria-hidden="true" />
@@ -125,15 +129,13 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
             </span>
           </div>
           <p className="tagline">
-            A repayment record you earned at one lender, proved to another — without revealing
-            which lenders, how much, or that it was you.
+            A repayment record you earned at one lender, proved to another. <b>Without revealing
+            which lenders, how much, or that it was you.</b>
           </p>
         </div>
         {api && (
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 12, color: 'var(--paper-faint)', marginBottom: 4 }}>
-              REGISTRY · click to copy
-            </div>
+          <div className="registry-chip">
+            <span className="lab">Registry · click to copy</span>
             {/* Every other actor joins by pasting this. Shortened for the
                 masthead; a click copies the full address. */}
             <Hash value={api.deployedContractAddress} />
@@ -149,7 +151,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
           lede={
             <>
               Amana needs the Midnight Lace wallet and a proof server. Proofs are built on your own
-              machine — no server we run is ever given the data a proof is about.
+              machine. No server we run is ever given the data a proof is about.
             </>
           }
         >
@@ -204,7 +206,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
 
       <footer className="foot">
         <span>
-          Amana — Midnight Buildathon, Wave 1. Apache-2.0. <code>{networkId}</code>
+          Amana · Midnight Buildathon, Wave 1 · Apache-2.0. <code>{networkId}</code>
         </span>
         <span>
           Repayment summaries stay off chain. This demo stores private state unencrypted in your browser.

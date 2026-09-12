@@ -18,19 +18,23 @@
   /* Gold carries the brand: أمانة is a trust placed in someone's hands. */
   --gold: #d9a441;
   --gold-bright: #f0bc5c;
-  --gold-dim: rgba(217, 164, 65, 0.14);
+  --gold-dim: rgba(217, 164, 65, 0.12);
+  --gold-line: rgba(217, 164, 65, 0.4);
 
   --green: #4ea882;
-  --green-dim: rgba(78, 168, 130, 0.14);
+  --green-dim: rgba(78, 168, 130, 0.12);
+  --green-line: rgba(78, 168, 130, 0.4);
   --red: #d9645f;
-  --red-dim: rgba(217, 100, 95, 0.14);
+  --red-dim: rgba(217, 100, 95, 0.12);
+  --red-line: rgba(217, 100, 95, 0.4);
 
-  --radius: 10px;
-  --radius-sm: 6px;
+  --radius-lg: 18px;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --pill: 999px;
 
-  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-  --mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Consolas, monospace;
+  --sans: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Mono', Consolas, monospace;
 }
 
 * {
@@ -52,18 +56,20 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* A faint vertical gradient so the page has a horizon rather than a flat wall. */
+/* Two soft glows behind the masthead, gold and green, so the page has depth
+   rather than a flat wall. They sit far enough back not to fight the cards. */
 #root {
   min-height: 100vh;
   background:
-    radial-gradient(1100px 500px at 50% -10%, rgba(217, 164, 65, 0.07), transparent 70%),
+    radial-gradient(720px 420px at 12% -6%, rgba(217, 164, 65, 0.14), transparent 65%),
+    radial-gradient(560px 380px at 92% 4%, rgba(78, 168, 130, 0.09), transparent 65%),
     linear-gradient(180deg, var(--ink-900) 0%, #080b13 100%);
 }
 
 .shell {
-  max-width: 1080px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 0 24px 96px;
+  padding: 0 28px 96px;
 }
 
 /* --- masthead ------------------------------------------------------------ */
@@ -72,16 +78,42 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
-  padding: 40px 0 28px;
+  gap: 28px;
+  padding: 44px 0 30px;
   border-bottom: 1px solid var(--ink-700);
   flex-wrap: wrap;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 16px;
+}
+
+.eyebrow .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.9s ease-out infinite;
+}
+
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(78, 168, 130, 0.55); }
+  100% { box-shadow: 0 0 0 11px rgba(78, 168, 130, 0); }
 }
 
 .wordmark {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .wordmark .brand-mark {
@@ -120,21 +152,48 @@ body {
 
 .tagline {
   color: var(--paper-dim);
-  font-size: 14px;
-  max-width: 48ch;
-  margin: 6px 0 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.45;
+  max-width: 46ch;
+  margin: 14px 0 0;
+}
+
+.tagline b {
+  color: var(--paper);
+  font-weight: 700;
+}
+
+/* The registry address chip, top right. */
+.registry-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 12px 16px;
+  background: var(--ink-850);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius);
+}
+
+.registry-chip .lab {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--paper-faint);
 }
 
 /* --- role switcher ------------------------------------------------------- */
 
 .roles {
   display: flex;
-  gap: 2px;
-  padding: 3px;
-  background: var(--ink-800);
+  gap: 4px;
+  padding: 5px;
+  background: var(--ink-850);
   border: 1px solid var(--ink-700);
-  border-radius: var(--radius);
-  margin: 28px 0 10px;
+  border-radius: var(--pill);
+  margin: 30px 0 12px;
   flex-wrap: wrap;
 }
 
@@ -145,11 +204,13 @@ body {
   background: transparent;
   color: var(--paper-dim);
   font-family: inherit;
-  font-size: 14px;
-  padding: 11px 16px;
-  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  padding: 11px 18px;
+  border-radius: var(--pill);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.12s;
   text-align: center;
 }
 
@@ -161,14 +222,18 @@ body {
 .roles button.active {
   background: var(--gold);
   color: var(--ink-900);
-  font-weight: 600;
+}
+
+.roles button:active {
+  transform: scale(0.985);
 }
 
 .roles button .role-sub {
   display: block;
   font-size: 11px;
-  opacity: 0.7;
-  font-weight: 400;
+  opacity: 0.72;
+  font-weight: 500;
+  margin-top: 1px;
 }
 
 /* --- protocol strip ------------------------------------------------------ */
@@ -178,44 +243,49 @@ body {
 .protocol {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   list-style: none;
-  margin: 0 0 32px;
+  margin: 0 0 34px;
   padding: 0;
-  counter-reset: none;
 }
+
 .protocol li {
   flex: 1 1 170px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 9px 12px;
+  gap: 10px;
+  padding: 10px 14px;
   border: 1px solid var(--ink-700);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--ink-850);
   color: var(--paper-faint);
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.3;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
+
 .protocol li .n {
   flex: none;
-  width: 19px;
-  height: 19px;
+  width: 22px;
+  height: 22px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: var(--ink-700);
   color: var(--paper-dim);
+  font-family: var(--mono);
   font-size: 11px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
 .protocol li.mine {
   color: var(--paper);
-  border-color: var(--gold);
+  border-color: var(--gold-line);
   background: var(--gold-dim);
 }
+
 .protocol li.mine .n {
   background: var(--gold);
   color: var(--ink-900);
@@ -232,25 +302,27 @@ body {
 .card {
   background: var(--ink-850);
   border: 1px solid var(--ink-700);
-  border-radius: var(--radius);
-  padding: 22px 24px;
-  margin-bottom: 18px;
+  border-radius: var(--radius-lg);
+  padding: 24px 26px;
+  margin-bottom: 16px;
 }
 
 .card > h2 {
-  font-size: 13px;
+  font-family: var(--mono);
+  font-size: 11.5px;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--paper-faint);
+  letter-spacing: 0.14em;
+  color: var(--gold);
   font-weight: 600;
-  margin: 0 0 4px;
+  margin: 0 0 6px;
 }
 
 .card > .card-lede {
   color: var(--paper-dim);
   font-size: 14px;
-  margin: 0 0 18px;
+  margin: 0 0 20px;
   max-width: 68ch;
+  line-height: 1.5;
 }
 
 .grid-2 {
@@ -263,11 +335,12 @@ body {
 
 label {
   display: block;
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
   color: var(--paper-faint);
-  margin-bottom: 6px;
+  margin-bottom: 7px;
   font-weight: 600;
 }
 
@@ -280,9 +353,9 @@ select {
   color: var(--paper);
   font-family: var(--sans);
   font-size: 14px;
-  padding: 10px 12px;
+  padding: 11px 14px;
   border-radius: var(--radius-sm);
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 input:focus,
@@ -290,6 +363,7 @@ textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-dim);
 }
 
 input.mono,
@@ -326,17 +400,26 @@ textarea {
 button.btn {
   appearance: none;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--pill);
   font-family: inherit;
   font-size: 14px;
-  font-weight: 600;
-  padding: 10px 18px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  padding: 11px 22px;
   cursor: pointer;
-  transition: filter 0.15s, background 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+}
+
+button.btn:hover:not(:disabled) {
+  transform: scale(1.02);
+}
+
+button.btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 button.btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -351,18 +434,18 @@ button.btn.primary:hover:not(:disabled) {
 
 button.btn.ghost {
   background: transparent;
-  border-color: var(--ink-600);
+  border-color: var(--ink-500);
   color: var(--paper);
 }
 
 button.btn.ghost:hover:not(:disabled) {
-  border-color: var(--ink-500);
+  border-color: var(--paper-faint);
   background: var(--ink-800);
 }
 
 button.btn.danger {
   background: transparent;
-  border-color: rgba(217, 100, 95, 0.5);
+  border-color: var(--red-line);
   color: var(--red);
 }
 
@@ -372,7 +455,7 @@ button.btn.danger:hover:not(:disabled) {
 
 button.btn.tiny {
   font-size: 12px;
-  padding: 5px 11px;
+  padding: 6px 13px;
 }
 
 .actions {
@@ -389,8 +472,8 @@ button.btn.tiny {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--ink-800);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--ink-700);
   font-size: 14px;
 }
 
@@ -400,10 +483,12 @@ button.btn.tiny {
 
 .kv .k {
   color: var(--paper-faint);
+  font-weight: 500;
 }
 
 .kv .v {
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .hash {
@@ -415,31 +500,33 @@ button.btn.tiny {
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1px;
-  background: var(--ink-700);
-  border: 1px solid var(--ink-700);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
 }
 
 .stat {
-  background: var(--ink-850);
-  padding: 14px 16px;
+  background: var(--ink-800);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius);
+  padding: 16px 18px;
 }
 
 .stat .n {
-  font-size: 26px;
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: var(--gold-bright);
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
 }
 
 .stat .l {
-  font-size: 11.5px;
+  font-family: var(--mono);
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.1em;
   color: var(--paper-faint);
-  margin-top: 3px;
+  margin-top: 8px;
 }
 
 /* --- attestation rows ---------------------------------------------------- */
@@ -448,11 +535,16 @@ button.btn.tiny {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 14px 16px;
+  padding: 14px 18px;
   border: 1px solid var(--ink-700);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   margin-bottom: 10px;
   background: var(--ink-800);
+  transition: border-color 0.15s;
+}
+
+.record:hover {
+  border-color: var(--ink-600);
 }
 
 .record .body {
@@ -461,7 +553,7 @@ button.btn.tiny {
 }
 
 .record .title {
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 2px;
 }
 
@@ -472,7 +564,9 @@ button.btn.tiny {
 
 .ratio {
   font-variant-numeric: tabular-nums;
-  font-size: 19px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   text-align: right;
   white-space: nowrap;
 }
@@ -480,6 +574,7 @@ button.btn.tiny {
 .ratio .of {
   color: var(--paper-faint);
   font-size: 13px;
+  font-weight: 500;
 }
 
 /* --- badges -------------------------------------------------------------- */
@@ -487,23 +582,36 @@ button.btn.tiny {
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10.5px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 3px 9px;
-  border-radius: 999px;
+  letter-spacing: 0.1em;
+  padding: 5px 11px;
+  border-radius: var(--pill);
   white-space: nowrap;
+  border: 1px solid transparent;
 }
 
 .badge.live {
   background: var(--green-dim);
+  border-color: var(--green-line);
   color: var(--green);
+}
+
+.badge.live::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.9s ease-out infinite;
 }
 
 .badge.dead {
   background: var(--red-dim);
+  border-color: var(--red-line);
   color: var(--red);
 }
 
@@ -514,14 +622,15 @@ button.btn.tiny {
 
 .badge.gold {
   background: var(--gold-dim);
-  color: var(--gold);
+  border-color: var(--gold-line);
+  color: var(--gold-bright);
 }
 
 /* --- notices ------------------------------------------------------------- */
 
 .notice {
-  padding: 12px 15px;
-  border-radius: var(--radius-sm);
+  padding: 13px 16px;
+  border-radius: var(--radius);
   font-size: 13.5px;
   margin-bottom: 16px;
   border: 1px solid;
@@ -530,13 +639,13 @@ button.btn.tiny {
 
 .notice.error {
   background: var(--red-dim);
-  border-color: rgba(217, 100, 95, 0.35);
+  border-color: var(--red-line);
   color: #f0a9a5;
 }
 
 .notice.ok {
   background: var(--green-dim);
-  border-color: rgba(78, 168, 130, 0.35);
+  border-color: var(--green-line);
   color: #8fd4b4;
 }
 
@@ -552,7 +661,7 @@ button.btn.tiny {
   color: var(--paper-faint);
   font-size: 14px;
   border: 1px dashed var(--ink-600);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 /* --- the privacy ledger -------------------------------------------------- */
@@ -562,32 +671,39 @@ button.btn.tiny {
 .split {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1px;
-  background: var(--ink-700);
-  border: 1px solid var(--ink-700);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+  gap: 12px;
 }
 
 .split section {
-  background: var(--ink-850);
-  padding: 16px 18px;
+  background: var(--ink-800);
+  border: 1px solid var(--ink-700);
+  border-radius: var(--radius);
+  padding: 18px 20px;
 }
 
 .split h3 {
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  margin: 0 0 10px;
+  letter-spacing: 0.14em;
+  margin: 0 0 12px;
   font-weight: 600;
 }
 
+.split .public {
+  border-color: var(--green-line);
+}
+
 .split .public h3 {
-  color: var(--gold);
+  color: var(--green);
+}
+
+.split .private {
+  border-color: var(--gold-line);
 }
 
 .split .private h3 {
-  color: var(--green);
+  color: var(--gold);
 }
 
 .split ul {
@@ -598,13 +714,17 @@ button.btn.tiny {
 }
 
 .split li {
-  margin-bottom: 5px;
+  margin-bottom: 6px;
+}
+
+.split li::marker {
+  color: var(--paper-faint);
 }
 
 /* --- footer -------------------------------------------------------------- */
 
 .foot {
-  margin-top: 40px;
+  margin-top: 44px;
   padding-top: 20px;
   border-top: 1px solid var(--ink-800);
   color: var(--paper-faint);
@@ -613,6 +733,11 @@ button.btn.tiny {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.foot code {
+  font-family: var(--mono);
+  color: var(--paper-dim);
 }
 
 .foot a {
@@ -637,9 +762,20 @@ button.btn.tiny {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .eyebrow .dot,
+  .badge.live::before {
+    animation: none;
+  }
+  button.btn,
+  .roles button {
+    transition: none;
+  }
+}
+
 @media (max-width: 620px) {
   .wordmark {
-    gap: 5px;
+    gap: 6px;
   }
   .wordmark .brand-mark {
     width: 50px;
@@ -653,5 +789,9 @@ button.btn.tiny {
   }
   .shell {
     padding: 0 16px 64px;
+  }
+  .registry-chip {
+    align-items: flex-start;
+    width: 100%;
   }
 }
