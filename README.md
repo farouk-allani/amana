@@ -31,6 +31,10 @@ A borrower proves they cleared a repayment bar, such as *"at least 14 on-time re
 
 Tunisia has six licensed microfinance companies operating nationally: Enda Tamweel, Taysir Microfinance, Baobab Tunisie, CFE Tunisie (DAAM), Advans Tunisie and Zitouna Tamkeen, alongside a network of microcredit associations under the regulator's supervision ([ACM register](https://www.financini.org.tn/organismList.php?a=t&v=1)). Enda alone runs [80 branches across all 24 governorates](https://www.bio-invest.be/en/investments/enda-tamweel-1), reported 502,523 active clients and 544,030 active loans at the end of 2024, and has served well over a million Tunisians across its lifetime. Taysir reported 38,654 active clients over the same period. Zitouna Tamkeen has financed [around 14,000 income-generating projects](https://www.isdb.org/economic-empowerment/success-stories/zitouna-tamkeen-1st-economic-empowerment-institution-in-north-africa) through 19 branches and two mobile units.
 
+<p align="center">
+  <img src="docs/assets/market-landscape.png" alt="The six licensed microfinance companies in Tunisia: Enda Tamweel, Taysir Microfinance, Baobab Tunisie, CFE Tunisie (DAAM), Advans Tunisie, Zitouna Tamkeen" width="1100">
+</p>
+
 Six institutions, overlapping territories, and a borrower who repays one of them faithfully for three years walks into any of the other five and is underwritten as a stranger.
 
 The obvious fix is a shared database of good borrowers. It has been proposed for decades and it does not exist, for a reason that has nothing to do with engineering: an institution's reliable repayers *are* its book. Publishing a list of who pays on time is publishing an acquisition target list for every competitor. No institution will do it, and no amount of database design changes that.
