@@ -1,12 +1,11 @@
 # Amana
 
 <p align="center">
-  <img src="docs/assets/amana-mark.png" alt="Amana mark" width="82">
-  &nbsp;&nbsp;
+  <img src="docs/assets/amana-mark-tight.png" alt="Amana mark" width="65">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/amana-wordmark-light.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/assets/amana-wordmark-dark.png">
-    <img src="docs/assets/amana-wordmark-dark.png" alt="Amana." width="340">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/amana-wordmark-light-tight.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/amana-wordmark-dark-tight.png">
+    <img src="docs/assets/amana-wordmark-dark-tight.png" alt="Amana." width="250">
   </picture>
 </p>
 
