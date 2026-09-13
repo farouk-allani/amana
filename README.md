@@ -72,6 +72,23 @@ flowchart LR
 
 Selective disclosure is not a privacy feature bolted onto this product. It is the only structure under which the counterparty ever agrees to participate.
 
+## The application
+
+Four roles, one registry, every hash click-to-copy. The strip under the role switcher shows where you are in the five-step check protocol.
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/assets/app-registry.png" alt="Registry Operator view: admitted institutions, issuance counters, and the public-versus-private ledger split"></td>
+    <td width="33%"><img src="docs/assets/app-issuing.png" alt="Issuing Institution view: lender key, admitted status, and an attestation just issued"></td>
+    <td width="33%"><img src="docs/assets/app-borrower.png" alt="Borrower view: generating a per-lender pseudonym and accepting a credential"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Registry Operator</b> · admits institutions, sees only counters and commitments</sub></td>
+    <td align="center"><sub><b>Issuing Institution</b> · issues a record; the chain receives one hash</sub></td>
+    <td align="center"><sub><b>Borrower</b> · a different pseudonym at every lender, credentials held locally</sub></td>
+  </tr>
+</table>
+
 ## What the verifier sees
 
 | | |
