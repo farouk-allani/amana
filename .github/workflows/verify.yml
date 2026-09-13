@@ -32,3 +32,8 @@ jobs:
       - run: npm run build
       - name: Check built package exports
         run: node -e "Promise.all([import('@amana/api'), import('@amana/contract')]).then(([a,c]) => { if (!a.AmanaAPI || !c.AmanaCompiledContract) process.exit(1); })"
+      - name: Check ZK artifacts are where the browser fetches them
+        # FetchZkConfigProvider requests /keys/<circuit>.verifier and
+        # /zkir/<circuit>.bzkir at the origin root. A copy-plugin change once
+        # nested them under the source path and every live transaction failed.
+        run: test -s amana-ui/dist/keys/proveCreditStanding.verifier && test -s amana-ui/dist/zkir/proveCreditStanding.bzkir

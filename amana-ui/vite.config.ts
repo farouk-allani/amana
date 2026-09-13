@@ -37,9 +37,14 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         { src: '../docs/assets/amana-mark.png', dest: '.' },
-        { src: '../contract/src/managed/amana/keys', dest: '.' },
-        { src: '../contract/src/managed/amana/zkir', dest: '.' },
-        { src: '../contract/src/managed/amana/compiler', dest: '.' },
+        // vite-plugin-static-copy 4.x always preserves the source directory
+        // structure, so without stripBase the keys land at
+        // /keys/contract/src/managed/amana/keys/ and FetchZkConfigProvider,
+        // which requests /keys/<circuit>.verifier and /zkir/<circuit>.bzkir
+        // at the origin root, gets the SPA fallback page instead.
+        { src: '../contract/src/managed/amana/keys/*', dest: 'keys', rename: { stripBase: true } },
+        { src: '../contract/src/managed/amana/zkir/*', dest: 'zkir', rename: { stripBase: true } },
+        { src: '../contract/src/managed/amana/compiler/*', dest: 'compiler', rename: { stripBase: true } },
       ],
     }),
   ],
