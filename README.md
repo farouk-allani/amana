@@ -21,6 +21,8 @@
 
 **Demo video:** [youtu.be/cTpo3uxrYkU](https://youtu.be/cTpo3uxrYkU) · **Pitch deck:** [12 slides, PDF](docs/amana-deck.pdf) · also on [Google Drive](https://drive.google.com/file/d/1cJu5Ot5Oxg7PVMRDGKsYANJPrSMDP7Xe/view?usp=sharing)
 
+**Hosted build:** [amana-rust.vercel.app](https://amana-rust.vercel.app/). It needs what any Midnight DApp needs on your side: the Lace Midnight Preview wallet on the preview network with a funded wallet, and a proof server running locally on `:6300` (see [Deploy to preview](#deploy-to-preview)). Then paste the registry address above and **Join registry**.
+
 <p align="center">
   <img src="docs/assets/amana-app-showcase.png" alt="Amana borrower and verifier application interfaces showing a private repayment proof" width="1100">
 </p>
