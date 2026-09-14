@@ -19,7 +19,7 @@
 
 > **Live on Midnight preview.** Registry contract `f49f9033e8cdb6f98ea53d2f8d7ea052be6ea5a710c542f147b93e75f3bbb8b8` · latest on-chain action in block 853,258, transaction `706d91af9e710afa70c05e8a24d788363105f2e90fde38f18d2f3d3faa4b3bf8`. Two institutions admitted, credentials issued, proofs verified against a local proof server.
 
-**Pitch deck:** [12 slides, PDF](docs/amana-deck.pdf) · also on [Google Drive](https://drive.google.com/file/d/1cJu5Ot5Oxg7PVMRDGKsYANJPrSMDP7Xe/view?usp=sharing)
+**Demo video:** [youtu.be/cTpo3uxrYkU](https://youtu.be/cTpo3uxrYkU) · **Pitch deck:** [12 slides, PDF](docs/amana-deck.pdf) · also on [Google Drive](https://drive.google.com/file/d/1cJu5Ot5Oxg7PVMRDGKsYANJPrSMDP7Xe/view?usp=sharing)
 
 <p align="center">
   <img src="docs/assets/amana-app-showcase.png" alt="Amana borrower and verifier application interfaces showing a private repayment proof" width="1100">
