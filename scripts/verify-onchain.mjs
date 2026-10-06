@@ -72,6 +72,8 @@ console.log(`Indexer ${indexer} · evidence recorded ${evidence.recorded}\n`);
 for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.ok ? '' : `\n      ${r.detail}`}`);
 const failed = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - failed} of ${results.length} checks passed.`);
+const orphaned = snapshot.issuers.filter(([, lender]) => !snapshot.lenders.includes(lender)).length;
 console.log(`Live now: ${snapshot.lenders.length} institutions, ${snapshot.issuedCount} records issued, `
-  + `${snapshot.revokedCount} revoked, ${snapshot.acceptedCount} credit checks answered.`);
+  + `${snapshot.revokedCount} revoked, ${snapshot.acceptedCount} credit checks answered`
+  + (orphaned ? `, ${orphaned} records of withdrawn institutions awaiting voiding.` : '.'));
 process.exitCode = failed === 0 ? 0 : 1;
