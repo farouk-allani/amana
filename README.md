@@ -9,15 +9,16 @@
 </p>
 
 [![Verify](https://github.com/farouk-allani/amana/actions/workflows/verify.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/verify.yml)
+[![On-chain evidence](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml)
 ![Compact](https://img.shields.io/badge/Compact-0.23-d9a441)
 ![Circuits](https://img.shields.io/badge/circuits-6-4ea882)
-![Tests](https://img.shields.io/badge/tests-63%20passing-4ea882)
+![Tests](https://img.shields.io/badge/tests-72%20passing-4ea882)
 ![Network](https://img.shields.io/badge/Midnight-preview-8b5cf6)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
 **Portable private repayment history on Midnight.** (Arabic أمانة, "a trust placed in someone's hands.")
 
-> **Live on Midnight preview.** Registry contract `f49f9033e8cdb6f98ea53d2f8d7ea052be6ea5a710c542f147b93e75f3bbb8b8` · latest on-chain action in block 853,258, transaction `706d91af9e710afa70c05e8a24d788363105f2e90fde38f18d2f3d3faa4b3bf8`. Two institutions admitted, credentials issued, proofs verified against a local proof server.
+> **Live on Midnight preview.** Registry contract `f49f9033e8cdb6f98ea53d2f8d7ea052be6ea5a710c542f147b93e75f3bbb8b8`, deployed in block 852,657 (transaction `4090e6121155a91163b41cce1ce6b635109698e2b6e2e060d01c88a08f28a7f5`). Two institutions admitted and three credentials issued on chain; no credit check has been answered on preview yet. Re-check all of it against the public indexer, with no wallet, using `npm run verify:onchain`. It compares the live registry with [the recorded evidence](docs/evidence/preview.json), and the same check runs daily in CI.
 
 **Demo video:** [youtu.be/cTpo3uxrYkU](https://youtu.be/cTpo3uxrYkU) · **Pitch deck:** [12 slides, PDF](docs/amana-deck.pdf) · also on [Google Drive](https://drive.google.com/file/d/1cJu5Ot5Oxg7PVMRDGKsYANJPrSMDP7Xe/view?usp=sharing)
 
@@ -221,19 +222,21 @@ Valid network ids are `preview`, `preprod`, `mainnet` and `undeployed`. The reti
 The fastest honest path from a clean clone to seeing the privacy property hold:
 
 1. **Confirm the technical gate**, about two minutes. `npm ci && npm run compact` compiles six circuits and writes proving keys under `contract/src/managed/`.
-2. **Run the adversarial suite**, about fifteen seconds. `npm test`. The interesting cases are not the happy path: `rejects squatting a known verifier ID even with its nonce`, `prevents a credentialed observer intercepting a public check`, `does not let a recent final payment make lifetime counts recent`, and `has an identical public transcript for one or four records`.
-3. **Drive the four roles.** Use separate browser profiles for operator, lender A, lender B, borrower and verifier. Role tabs inside one profile share an identity, so switching tabs does not create a second lender. Deploy a registry, activate it, admit both lender keys, issue 8/8 and 6/7 with matching intervals, run the five-step protocol at threshold 14, and read the result.
-4. **Break it.** Revoke lender A's leaf as lender A. The borrower's wallet marks the credential not live and a fresh check at 14 can no longer be answered. The circuit-level regression that bypasses the UI is `rejects a revoked witness but retains a historical accepted check`.
+2. **Check the live registry**, about ten seconds. `npm run verify:onchain` reads the deployed contract through the public preview indexer and checks it field by field: the authority, the admitted institutions, which institution issued each leaf, the counters, the recorded transactions and their blocks, plus invariants any honest registry must satisfy, such as one leaf per issued record and every answer matching the terms its verifier committed.
+3. **Run the adversarial suite**, about fifteen seconds. `npm test`. The interesting cases are not the happy path: `rejects squatting a known verifier ID even with its nonce`, `prevents a credentialed observer intercepting a public check`, `does not let a recent final payment make lifetime counts recent`, and `has an identical public transcript for one or four records`.
+4. **Drive the four roles.** Use separate browser profiles for operator, lender A, lender B, borrower and verifier. Role tabs inside one profile share an identity, so switching tabs does not create a second lender. Deploy a registry, activate it, admit both lender keys, issue 8/8 and 6/7 with matching intervals, run the five-step protocol at threshold 14, and read the result.
+5. **Break it.** Revoke lender A's leaf as lender A. The borrower's wallet marks the credential not live and a fresh check at 14 can no longer be answered. The circuit-level regression that bypasses the UI is `rejects a revoked witness but retains a historical accepted check`.
 
 A monthly period is `(UTC year − 1970) × 12 + UTC month index`. September 2026 is period 680, and a 24-month window ending there is 657 to 680.
 
 ## Quality evidence
 
-**63 passing tests**, all against compiled circuits rather than mocks.
+**72 passing tests.** 63 run against compiled circuits rather than mocks; 9 exercise the on-chain verifier against hand-built registry snapshots.
 
 - **40 circuit tests** covering authority front-running, issuer impersonation, inflated counts, reversed intervals, ID squatting, term rewriting, check interception by a credentialed outsider, lifetime-count laundering, double-counted leaves, overlapping same-lender snapshots, revocation, and wrong-index liveness.
 - **23 API integration tests** covering the full lifecycle, wallet liveness on public revocation events, duplicate and malformed credential rejection, private-state cleanup after transaction failure, and operation serialization so concurrent issuance cannot overwrite pending witnesses.
 - **A privacy property written as a regression test.** `has an identical public transcript for one or four records satisfying the same check` executes the compiled circuit twice against the same ledger and check, once with one contributing credential and once with four, then asserts the complete public transcripts and public inputs are equal while the private transcripts differ.
+- **9 evidence-check tests** for `verify:onchain`. A matching registry passes, and later public activity counts as growth rather than failure. A changed authority, broken leaf accounting, an unadmitted issuer, an answer with altered terms, a shrunken counter or a misplaced transaction each fail.
 
 Circuit tests execute generated Compact circuits against the local runtime. API tests simulate providers and finalization; they do not submit transactions or generate cryptographic proofs.
 
