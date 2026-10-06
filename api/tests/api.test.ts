@@ -159,6 +159,41 @@ describe('API with compiled circuit integration', () => {
   });
 });
 
+describe('registry governance', () => {
+  const stateOf = (c: { api: AmanaAPI }) => firstValueFrom(c.api.state$.pipe(timeout(2000)));
+  it('withdraws an institution and voids its records through the authority', async () => {
+    const h = await harness(), issued = await h.issue(); await h.borrower.api.importCredential(issued.text);
+    await h.authority.api.removeLender(await h.a.api.lenderKey());
+    let registry = (await stateOf(h.authority)).registry;
+    expect(registry.lenders).not.toContain(await h.a.api.lenderKey());
+    expect(registry.orphanedLeaves).toEqual([issued.leafIndex]);
+    expect((await stateOf(h.borrower)).wallet.liveCount).toBe(1);
+    await h.authority.api.revokeOrphanedAttestation(issued.leafIndex);
+    registry = (await stateOf(h.authority)).registry;
+    expect(registry.orphanedLeaves).toEqual([]);
+    expect((await stateOf(h.borrower)).wallet.liveCount).toBe(0);
+  });
+  it('refuses to void an admitted institution\'s record before spending a transaction', async () => {
+    const h = await harness(), issued = await h.issue();
+    await expect(h.authority.api.revokeOrphanedAttestation(issued.leafIndex)).rejects.toThrow('withdrawn institutions');
+    expect(h.authority.calls.revokeOrphanedAttestation).not.toHaveBeenCalled();
+    await expect(h.authority.api.removeLender('ee'.repeat(32))).rejects.toThrow('not admitted');
+    expect(h.authority.calls.removeLender).not.toHaveBeenCalled();
+  });
+  it('hands the registry over only when the offered key accepts', async () => {
+    const h = await harness(), successor = await h.client('successor');
+    await expect(successor.api.acceptAuthority()).rejects.toThrow('not been offered');
+    await h.authority.api.proposeAuthority(await successor.api.lenderKey());
+    expect((await stateOf(successor)).identity.isPendingAuthority).toBe(true);
+    expect((await stateOf(h.authority)).identity.isAuthority).toBe(true);
+    await successor.api.acceptAuthority();
+    const after = await stateOf(successor);
+    expect(after.identity.isAuthority).toBe(true);
+    expect(after.registry.pendingAuthority).toBeNull();
+    expect((await stateOf(h.authority)).identity.isAuthority).toBe(false);
+  });
+});
+
 describe('credential input boundary', () => {
   it.each(['zz'.repeat(32), 'a'.repeat(63), '1g'.repeat(32)])('rejects malformed keys (%s)', (key) => {
     expect(() => utils.keyBytes(key)).toThrow();

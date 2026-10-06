@@ -82,15 +82,21 @@ export ledger protocolVersion: Uint<8>;
 export ledger authority: Bytes<32>;
 export ledger bootstrapped: Boolean;
 
+// A handover the authority has offered and the new key has not yet accepted.
+// All zero when none is pending.
+export ledger pendingAuthority: Bytes<32>;
+
 // Institutions permitted to issue attestations.
 export ledger lenders: Set<Bytes<32>>;
 
 // Commitments to every attestation ever issued.
 //
-// Deliberately a plain MerkleTree and NOT a HistoricMerkleTree: `checkRoot`
-// must accept the *current* root only. That is what makes revocation work —
-// see `revokeAttestation`.
-export ledger attestations: MerkleTree<10, Bytes<32>>;
+// Historic, so `checkRoot` accepts any root since the last revocation: a
+// borrower's proof built against the tree stays valid while other lenders
+// keep issuing. Every revocation clears that history (see `revokeAttestation`),
+// because a historic root that still contains a voided leaf would let the
+// voided record keep proving.
+export ledger attestations: HistoricMerkleTree<10, Bytes<32>>;
 
 // Leaf index -> issuing lender, so only the issuer can revoke what it issued.
 // This reveals which institution filled a slot, never who the borrower is.
@@ -115,7 +121,7 @@ export ledger revokedCount: Counter;
 export ledger acceptedCount: Counter;
 
 constructor(initialAuthority: Bytes<32>) {
-  protocolVersion = 2;
+  protocolVersion = 3;
   assert(initialAuthority != default<Bytes<32>>, "authority key must not be zero");
   authority = disclose(initialAuthority);
   bootstrapped = false;
@@ -208,11 +214,47 @@ export circuit claimAuthority(): [] {
   bootstrapped = true;
 }
 
+/**
+ * Offer the registry to a new authority key.
+ *
+ * Nothing changes until that key accepts, so a mistyped key cannot strand
+ * the registry. A later offer replaces an earlier one.
+ */
+export circuit proposeAuthority(newAuthority: Bytes<32>): [] {
+  assert(bootstrapped, "registry has no authority yet");
+  assert(authority == disclose(lenderKey(localSecretKey())), "only the authority may hand over the registry");
+  assert(newAuthority != default<Bytes<32>>, "authority key must not be zero");
+  pendingAuthority = disclose(newAuthority);
+}
+
+/** Take over the registry by proving control of the offered key. */
+export circuit acceptAuthority(): [] {
+  assert(pendingAuthority != default<Bytes<32>>, "no handover is pending");
+  assert(pendingAuthority == disclose(lenderKey(localSecretKey())), "only the offered key may accept the registry");
+  authority = pendingAuthority;
+  pendingAuthority = default<Bytes<32>>;
+}
+
 /** Admit an institution to the set permitted to issue attestations. */
 export circuit registerLender(lender: Bytes<32>): [] {
   assert(bootstrapped, "registry has no authority yet");
   assert(authority == disclose(lenderKey(localSecretKey())), "only the authority may register lenders");
   lenders.insert(disclose(lender));
+}
+
+/**
+ * Withdraw an institution's permission to issue and to revoke.
+ *
+ * Records it already issued stay live until the authority voids them with
+ * `revokeOrphanedAttestation`. A proof cannot itself check that its issuers
+ * are still admitted without disclosing which institutions they are, so
+ * withdrawal is a public, per-leaf clean-up instead.
+ */
+export circuit removeLender(lender: Bytes<32>): [] {
+  assert(bootstrapped, "registry has no authority yet");
+  assert(authority == disclose(lenderKey(localSecretKey())), "only the authority may remove lenders");
+  assert(lenders.member(disclose(lender)), "not a registered lender");
+  lenders.remove(disclose(lender));
 }
 
 // --- issuance --------------------------------------------------------------
@@ -247,10 +289,14 @@ export circuit issueAttestation(): Uint<64> {
  * Void a previously issued attestation.
  *
  * Overwriting the leaf with the default value changes the tree's root, so
- * every path that ran through that leaf stops verifying. Because the tree is
- * not historic, the old root is not accepted either. The borrower's proof
+ * every path that ran through that leaf stops verifying. Clearing the root
+ * history means no earlier root is accepted either. The borrower's proof
  * simply stops succeeding — no revocation list is consulted, and no
  * additional information about the borrower reaches the chain.
+ *
+ * The cost of clearing history is that every proof in flight, for any
+ * borrower, must be rebuilt against the new root. Revocation is rare;
+ * issuance, which no longer has this cost, is not.
  */
 export circuit revokeAttestation(index: Uint<64>): [] {
   const key = lenderKey(localSecretKey());
@@ -259,6 +305,26 @@ export circuit revokeAttestation(index: Uint<64>): [] {
   assert(issuers.lookup(disclose(index)) == disclose(key), "only the issuing lender may revoke");
 
   attestations.insertIndexDefault(disclose(index));
+  attestations.resetHistory();
+  issuers.remove(disclose(index));
+  revokedCount.increment(1);
+}
+
+/**
+ * Void a record whose issuer the authority has removed.
+ *
+ * The issuer-to-leaf map is already public, so this reveals nothing new: the
+ * authority learns which slots a withdrawn institution filled, never whose
+ * records they are. Records of institutions still admitted remain theirs
+ * alone to revoke.
+ */
+export circuit revokeOrphanedAttestation(index: Uint<64>): [] {
+  assert(authority == disclose(lenderKey(localSecretKey())), "only the authority may void orphaned records");
+  assert(issuers.member(disclose(index)), "no attestation at that index");
+  assert(!lenders.member(issuers.lookup(disclose(index))), "the issuer is still admitted and alone may revoke");
+
+  attestations.insertIndexDefault(disclose(index));
+  attestations.resetHistory();
   issuers.remove(disclose(index));
   revokedCount.increment(1);
 }
@@ -345,8 +411,8 @@ export circuit proveCreditStanding(checkId: Bytes<32>): [] {
     assert(!u || paths[i].leaf == attestationCommitment(a),
       "merkle path does not open to the attestation");
 
-    // ...and that leaf is live in the registry right now. A revoked leaf, or
-    // a record that was never issued, fails here.
+    // ...and that leaf is live: present under a root issued since the last
+    // revocation. A revoked leaf, or a record that was never issued, fails.
     //
     // Note the argument order. Written `!u || checkRoot(...)`, the short
     // circuit would make a *ledger operation* conditional on `u`, and the
@@ -354,8 +420,8 @@ export circuit proveCreditStanding(checkId: Bytes<32>): [] {
     // leak how many attestations this borrower actually holds. Evaluating
     // `checkRoot` first keeps the number of ledger reads identical for every
     // borrower. Unused slots carry a duplicate of a live path (see the
-    // witness provider), so the disclosed root is the tree's real root in all
-    // four slots and distinguishes nothing.
+    // witness provider), so all four slots disclose the same root — the one
+    // the proof was built against — and distinguish nothing.
     assert(attestations.checkRoot(disclose(merkleTreePathRoot<10, Bytes<32>>(paths[i]))),
       "attestation is not live in the registry");
   }

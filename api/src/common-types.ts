@@ -57,6 +57,10 @@ export type RegistryState = {
   readonly nextLeaf: bigint;
   /** Leaf index -> issuing lender key, for the issuer's own console. */
   readonly issuers: ReadonlyMap<bigint, string>;
+  /** Key the authority has offered the registry to, if a handover is pending. */
+  readonly pendingAuthority: string | null;
+  /** Live leaves whose issuer has been withdrawn, awaiting the authority's revocation. */
+  readonly orphanedLeaves: readonly bigint[];
 };
 
 /** The signed-in participant's view of themselves. */
@@ -67,6 +71,8 @@ export type IdentityState = {
   readonly isRegisteredLender: boolean;
   /** Whether this device's key is the registry authority. */
   readonly isAuthority: boolean;
+  /** Whether the authority has offered the registry to this device's key. */
+  readonly isPendingAuthority: boolean;
 };
 
 /**

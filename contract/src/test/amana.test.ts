@@ -22,7 +22,7 @@ const request = (s: AmanaSimulator, n = 'check', borrower = 'amina', threshold =
 describe('deployment and issuing authority', () => {
   it('commits authority at deployment and rejects a front-run claim', () => {
     const s = new AmanaSimulator();
-    expect(s.getLedger().protocolVersion).toBe(2n);
+    expect(s.getLedger().protocolVersion).toBe(3n);
     expect(() => s.as('stranger').claimAuthority()).toThrow('only the deployment authority');
     expect(s.as('authority').claimAuthority().bootstrapped).toBe(true);
   });
@@ -63,6 +63,73 @@ describe('deployment and issuing authority', () => {
   it('rejects reversed reporting intervals', () => {
     const s = setup('A');
     expect(() => s.as('A').issueTo('amina', record(14n, NOW, FLOOR))).toThrow('invalid reporting interval');
+  });
+});
+
+describe('handing over the registry', () => {
+  const ZERO = new Uint8Array(32);
+  it('changes authority only when the offered key accepts', () => {
+    const s = setup();
+    const successor = s.lenderKeyOf('successor');
+    expect(toHex(s.as('authority').proposeAuthority(successor).pendingAuthority)).toBe(toHex(successor));
+    expect(toHex(s.getLedger().authority)).toBe(toHex(s.lenderKeyOf('authority')));
+    expect(() => s.as('stranger').acceptAuthority()).toThrow('only the offered key');
+    const l = s.as('successor').acceptAuthority();
+    expect(toHex(l.authority)).toBe(toHex(successor));
+    expect(toHex(l.pendingAuthority)).toBe(toHex(ZERO));
+    expect(() => s.as('authority').registerLender(s.lenderKeyOf('A'))).toThrow('only the authority');
+    expect(s.as('successor').registerLender(s.lenderKeyOf('A')).lenders.member(s.lenderKeyOf('A'))).toBe(true);
+  });
+  it('lets only the authority make an offer, and never to the zero key', () => {
+    const s = setup();
+    expect(() => s.as('stranger').proposeAuthority(s.lenderKeyOf('stranger'))).toThrow('only the authority may hand over');
+    expect(() => s.as('authority').proposeAuthority(ZERO)).toThrow('must not be zero');
+  });
+  it('refuses acceptance when nothing is offered', () => {
+    const s = setup();
+    expect(() => s.as('authority').acceptAuthority()).toThrow('no handover is pending');
+  });
+  it('replaces an earlier offer with a later one', () => {
+    const s = setup();
+    s.as('authority').proposeAuthority(s.lenderKeyOf('first'));
+    s.proposeAuthority(s.lenderKeyOf('second'));
+    expect(() => s.as('first').acceptAuthority()).toThrow('only the offered key');
+    expect(toHex(s.as('second').acceptAuthority().authority)).toBe(toHex(s.lenderKeyOf('second')));
+  });
+});
+
+describe('withdrawing an issuer', () => {
+  it('lets only the authority remove an institution', () => {
+    const s = setup('A');
+    expect(() => s.as('stranger').removeLender(s.lenderKeyOf('A'))).toThrow('only the authority may remove');
+    expect(() => s.as('authority').removeLender(s.lenderKeyOf('B'))).toThrow('not a registered lender');
+    expect(s.removeLender(s.lenderKeyOf('A')).lenders.member(s.lenderKeyOf('A'))).toBe(false);
+  });
+  it('stops a removed institution issuing or revoking', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    s.as('authority').removeLender(s.lenderKeyOf('A'));
+    expect(() => s.as('A').issueTo('amina', record())).toThrow('not a registered lender');
+    expect(() => s.as('A').revokeAttestation(0n)).toThrow('not a registered lender');
+  });
+  it('keeps its records live until the authority voids them, then refuses them', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    s.as('authority').removeLender(s.lenderKeyOf('A'));
+    expect(isLiveAttestation(s.getLedger(), s.walletOf('amina')[0])).toBe(true);
+    const l = s.as('authority').revokeOrphanedAttestation(0n);
+    expect(l.revokedCount).toBe(1n);
+    expect(isLiveAttestation(l, s.walletOf('amina')[0])).toBe(false);
+    const id = request(s);
+    expect(() => s.as('amina').proveWithSelection(id, [0n])).toThrow('not live');
+  });
+  it('leaves the records of admitted institutions to their issuer', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    expect(() => s.as('authority').revokeOrphanedAttestation(0n)).toThrow('still admitted');
+  });
+  it('lets only the authority void orphaned records', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    s.as('authority').removeLender(s.lenderKeyOf('A'));
+    expect(() => s.as('stranger').revokeOrphanedAttestation(0n)).toThrow('only the authority may void');
+    expect(() => s.as('authority').revokeOrphanedAttestation(1n)).toThrow('no attestation at that index');
   });
 });
 
@@ -211,6 +278,29 @@ describe('revocation, selection, and replay', () => {
     s.as('A').revokeAttestation(0n); const id = request(s);
     s.as('amina').proveCreditStanding(id);
     expect(s.getPrivateState().presenting).toEqual([1n]);
+  });
+  it('accepts a proof built before another lender issued', () => {
+    const s = setup('A', 'B'); s.as('A').issueTo('amina', record());
+    const id = request(s);
+    const view = s.getLedger();
+    s.as('B').issueTo('other', record());
+    expect(s.getLedger().attestations.root()).not.toEqual(view.attestations.root());
+    expect(s.as('amina').proveAgainst(id, view).checks.member(id)).toBe(true);
+  });
+  it('refuses a proof built before any revocation, even of another record', () => {
+    const s = setup('A', 'B'); s.as('A').issueTo('amina', record()); s.as('B').issueTo('other', record());
+    const id = request(s);
+    const view = s.getLedger();
+    s.as('B').revokeAttestation(1n);
+    expect(() => s.as('amina').proveAgainst(id, view)).toThrow('not live');
+  });
+  it('refuses a proof built before its own record was revoked', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    const id = request(s);
+    const view = s.getLedger();
+    s.as('A').issueTo('other', record());
+    s.revokeAttestation(0n);
+    expect(() => s.as('amina').proveAgainst(id, view)).toThrow('not live');
   });
   it('does not consider the right commitment at the wrong index live', () => {
     const s = setup('A'); s.as('A').issueTo('amina', record());

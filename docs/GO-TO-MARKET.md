@@ -49,9 +49,9 @@ Every non-cryptographic proposal in this space asks an institution to trade comp
 
 Amana removes the trade entirely.
 
-The issuing institution publishes a **commitment**, an opaque 32-byte hash, and nothing else. No borrower, no amount, no count, no interval. The borrower carries the credential. When a second institution asks a question, the borrower answers *that specific question* with a zero-knowledge proof, and the second institution learns exactly one bit more than it knew before: the bar was cleared.
+The issuing institution publishes a **commitment**, an opaque 32-byte hash, under its own registry key. No borrower, no amount, no count, no interval. The borrower carries the credential. When a second institution asks a question, the borrower answers *that specific question* with a zero-knowledge proof, and the second institution learns exactly one bit more than it knew before: the bar was cleared.
 
-What the issuer gives up: nothing.
+What the issuer gives up: no customer data. The chain does show how many commitments it files, and when ([AUD-06](AUDIT.md#aud-06)).
 What the verifier gains: a current, cryptographically authenticated, issuer-backed fact.
 What the borrower gains: their own repayment record becomes portable property rather than a competitor's asset.
 

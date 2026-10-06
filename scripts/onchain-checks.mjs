@@ -6,7 +6,8 @@
  * tested against hand-built snapshots.
  *
  * Two kinds of check. Invariants hold for any honest Amana registry, whoever
- * has used it since. Evidence checks compare against what the repository
+ * has used it since. A live record whose issuer has been withdrawn is not a
+ * violation: it stays live until the authority voids it. Evidence checks compare against what the repository
  * records. The registry is public and anyone may use it, so counters are
  * compared as lower bounds: activity after the recording is not a failure.
  */
@@ -41,9 +42,6 @@ export const evaluate = (evidence, snapshot, transactions) => {
   check('live records = issued − revoked',
     BigInt(issuers.size) === snapshot.issuedCount - snapshot.revokedCount,
     `${issuers.size} live, ${snapshot.issuedCount} issued, ${snapshot.revokedCount} revoked`);
-  const strangers = [...issuers.values()].filter((l) => !lenders.has(l));
-  check('every live record was issued by an admitted institution', strangers.length === 0,
-    `issuers not in the admitted set: ${strangers.map(short).join(', ')}`);
   check('one answer and one nullifier per accepted proof',
     BigInt(snapshot.checks.length) === snapshot.acceptedCount
       && snapshot.nullifierCount === snapshot.acceptedCount,
@@ -59,7 +57,8 @@ export const evaluate = (evidence, snapshot, transactions) => {
   check(`authority ${short(recorded.authority)}`, snapshot.authority === recorded.authority,
     `registry authority is ${short(snapshot.authority)}`);
   const missing = recorded.lenders.filter((l) => !lenders.has(l));
-  check(`${recorded.lenders.length} recorded institutions admitted`, missing.length === 0,
+  const n = recorded.lenders.length;
+  check(`${n} recorded institution${n === 1 ? '' : 's'} admitted`, missing.length === 0,
     `not admitted: ${missing.map(short).join(', ')}`);
   for (const [leaf, lender] of Object.entries(recorded.issuers)) {
     const now = issuers.get(leaf);

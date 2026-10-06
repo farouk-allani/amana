@@ -53,7 +53,7 @@ export class AmanaAPI {
     return {
       registry,
       identity: { lenderKey, isRegisteredLender: ledger.lenders.member(utils.keyBytes(lenderKey)),
-        isAuthority: registry.authority === lenderKey },
+        isAuthority: registry.authority === lenderKey, isPendingAuthority: registry.pendingAuthority === lenderKey },
       wallet: { attestations: entries, liveCount: entries.filter((s) => s.live).length,
         provableOnTime: provableTotal(entries.filter((s) => s.live), 0n, utils.currentPeriod()) },
     };
@@ -64,6 +64,8 @@ export class AmanaAPI {
       lenders: [...ledger.lenders].map(toHex), attestationsIssued: ledger.issuedCount,
       attestationsRevoked: ledger.revokedCount, checksAnswered: ledger.acceptedCount, nextLeaf: ledger.nextLeaf,
       issuers: new Map([...ledger.issuers].map(([k, v]) => [k, toHex(v)])),
+      pendingAuthority: ledger.pendingAuthority.some((b) => b !== 0) ? toHex(ledger.pendingAuthority) : null,
+      orphanedLeaves: [...ledger.issuers].filter(([, lender]) => !ledger.lenders.member(lender)).map(([leaf]) => leaf),
     };
   }
   private async readPrivateState(): Promise<AmanaPrivateState> {
@@ -91,6 +93,32 @@ export class AmanaAPI {
   }
   async registerLender(key: string): Promise<void> {
     return this.exclusive(async () => { await this.deployedContract.callTx.registerLender(utils.keyBytes(key)); });
+  }
+  async removeLender(key: string): Promise<void> {
+    return this.exclusive(async () => {
+      if (!(await this.readLedger()).lenders.member(utils.keyBytes(key))) throw new Error('That institution is not admitted.');
+      await this.deployedContract.callTx.removeLender(utils.keyBytes(key));
+    });
+  }
+  /** Void a live record whose issuer the authority has withdrawn. */
+  async revokeOrphanedAttestation(leafIndex: bigint): Promise<void> {
+    return this.exclusive(async () => {
+      const index = utils.uint(leafIndex, 10, 'Leaf index');
+      if (!AmanaAPI.readRegistry(await this.readLedger()).orphanedLeaves.includes(index))
+        throw new Error('Only records of withdrawn institutions can be voided by the authority.');
+      await this.deployedContract.callTx.revokeOrphanedAttestation(index);
+    });
+  }
+  /** Offer the registry to another key; nothing changes until that key accepts. */
+  async proposeAuthority(key: string): Promise<void> {
+    return this.exclusive(async () => { await this.deployedContract.callTx.proposeAuthority(utils.keyBytes(key)); });
+  }
+  async acceptAuthority(): Promise<void> {
+    return this.exclusive(async () => {
+      if (AmanaAPI.readRegistry(await this.readLedger()).pendingAuthority !== await this.lenderKey())
+        throw new Error('The registry has not been offered to this key.');
+      await this.deployedContract.callTx.acceptAuthority();
+    });
   }
   async issueAttestation(record: RepaymentRecord): Promise<IssuedAttestation> {
     return this.exclusive(async () => {
@@ -199,8 +227,8 @@ export class AmanaAPI {
     const state = await providers.publicDataProvider.queryContractState(contractAddress);
     if (!state) throw new Error('Registry not found on the selected network.');
     try {
-      if (Amana.ledger(state.data).protocolVersion !== 2n) throw new Error('version');
-    } catch { throw new Error('Incompatible registry. This client requires a fresh Amana version 2 deployment.'); }
+      if (Amana.ledger(state.data).protocolVersion !== 3n) throw new Error('version');
+    } catch { throw new Error('Incompatible registry. This client requires an Amana protocol version 3 registry; deploy a fresh one.'); }
     providers.privateStateProvider.setContractAddress(contractAddress);
     const existing = await providers.privateStateProvider.get(amanaPrivateStateKey);
     const deployed = await findDeployedContract(providers, {

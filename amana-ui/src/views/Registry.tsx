@@ -12,6 +12,7 @@ export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }>
   state,
 }) => {
   const [newLender, setNewLender] = useState('');
+  const [successor, setSuccessor] = useState('');
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
   const { registry, identity } = state;
@@ -39,7 +40,7 @@ export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }>
             <h3>Public ledger</h3>
             <ul>
               <li>Which institutions may issue</li>
-              <li>Commitment leaves, their current Merkle root, and issuing lender keys</li>
+              <li>Commitment leaves, Merkle roots since the last revocation, and issuing lender keys</li>
               <li>Spent nullifiers</li>
               <li>Requested terms, verifier keys, check-specific response keys, and results</li>
               <li>Counts: issued, revoked, answered</li>
@@ -91,6 +92,52 @@ export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }>
               )}
             </span>
           </div>
+          {registry.pendingAuthority && (
+            <div className="kv">
+              <span className="k">Offered to</span>
+              <span className="v">
+                <Hash value={registry.pendingAuthority} />
+              </span>
+            </div>
+          )}
+          {identity.isPendingAuthority && (
+            <ActionButton
+              label="Accept the registry"
+              busyLabel="Accepting…"
+              onRun={() => api.acceptAuthority()}
+              onError={setError}
+              onDone={setOk}
+              doneMessage="This device is now the registry authority."
+            />
+          )}
+          {identity.isAuthority && (
+            <>
+              <Field
+                label="Hand over to"
+                hint="The new operator's lender key. Nothing changes until that key accepts, and a later offer replaces this one."
+              >
+                <input
+                  className="mono"
+                  value={successor}
+                  placeholder="a3f1…"
+                  onChange={(e) => setSuccessor(e.target.value)}
+                />
+              </Field>
+              <ActionButton
+                label="Offer the registry"
+                kind="ghost"
+                busyLabel="Offering…"
+                disabled={!utils.isHex32(successor.trim())}
+                onRun={async () => {
+                  await api.proposeAuthority(successor.trim());
+                  setSuccessor('');
+                }}
+                onError={setError}
+                onDone={setOk}
+                doneMessage="Offer recorded. The new key must accept it from its own device."
+              />
+            </>
+          )}
         </Card>
       )}
 
@@ -137,10 +184,52 @@ export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }>
                 </div>
               </div>
               {key === registry.authority && <Badge kind="gold">authority</Badge>}
+              {identity.isAuthority && (
+                <ActionButton
+                  label="Withdraw"
+                  kind="danger"
+                  tiny
+                  busyLabel="Withdrawing…"
+                  onRun={() => api.removeLender(key)}
+                  onError={setError}
+                  onDone={setOk}
+                  doneMessage="Institution withdrawn. Its existing records stay live until you void them below."
+                />
+              )}
             </div>
           ))
         )}
       </Card>
+
+      {registry.orphanedLeaves.length > 0 && (
+        <Card
+          title="Records of withdrawn institutions"
+          lede="These records were issued by institutions no longer admitted, and they still prove until voided. A proof cannot check its issuers' standing without revealing who they are, so voiding is a public step taken by the authority, one leaf at a time."
+        >
+          {registry.orphanedLeaves.map((leaf) => (
+            <div className="record" key={leaf.toString()}>
+              <div className="body">
+                <div className="title">Leaf {leaf.toString()}</div>
+                <div className="meta">
+                  Issued by <Hash value={registry.issuers.get(leaf) ?? ''} />
+                </div>
+              </div>
+              {identity.isAuthority && (
+                <ActionButton
+                  label="Void"
+                  kind="danger"
+                  tiny
+                  busyLabel="Voiding…"
+                  onRun={() => api.revokeOrphanedAttestation(leaf)}
+                  onError={setError}
+                  onDone={setOk}
+                  doneMessage={`Leaf ${leaf.toString()} voided.`}
+                />
+              )}
+            </div>
+          ))}
+        </Card>
+      )}
     </>
   );
 };

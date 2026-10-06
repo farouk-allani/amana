@@ -50,9 +50,11 @@ describe('on-chain evidence checks', () => {
     assert.ok(failures({ ...snapshot(), nextLeaf: 3n }).includes('one tree leaf per issued record'));
   });
 
-  it('flag a live record from an institution that is not admitted', () => {
-    const s = { ...snapshot(), issuers: [[0n, A], [1n, C]] };
-    assert.ok(failures(s).includes('every live record was issued by an admitted institution'));
+  it('accept live records of a withdrawn institution awaiting voiding', () => {
+    // B issued leaf 1 and has since been withdrawn: only the recorded
+    // membership differs, and leaf 1 is not an invariant violation.
+    const s = { ...snapshot(), lenders: [A] };
+    assert.deepEqual(failures(s), ['2 recorded institutions admitted']);
   });
 
   it('flag an answer whose terms differ from the committed request', () => {
