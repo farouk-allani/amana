@@ -1,31 +1,35 @@
 {
   "network": "preview",
   "indexer": "https://indexer.preview.midnight.network/api/v3/graphql",
-  "contract": "f49f9033e8cdb6f98ea53d2f8d7ea052be6ea5a710c542f147b93e75f3bbb8b8",
+  "contract": "663c23414094c13a26ca98f476923a1d8b32bd631b9a83e3a3ad2a91df7d1c1e",
   "recorded": "2026-10-06",
   "ledger": {
-    "protocolVersion": 2,
-    "authority": "fc8f4e1b8452b22f3666256aca67405bed01431069f23f4d25397c8717fe4253",
+    "protocolVersion": 3,
+    "authority": "f60d7d8c92db5fdc02899d501ac2c6fefecb1f819b22ab7801ae0624c5895f40",
     "lenders": [
-      "fc8f4e1b8452b22f3666256aca67405bed01431069f23f4d25397c8717fe4253",
-      "93737ed7ca3a52018ab2c4128ee9cfdc5c0670e25a3c128e7ae71c3011b48820"
+      "4da1ed1abfd5d6afc23af6ae92e2fbe805ce8a00cfc692c4bce06cab9ead41e3"
     ],
     "issuers": {
-      "0": "fc8f4e1b8452b22f3666256aca67405bed01431069f23f4d25397c8717fe4253",
-      "1": "93737ed7ca3a52018ab2c4128ee9cfdc5c0670e25a3c128e7ae71c3011b48820",
-      "2": "93737ed7ca3a52018ab2c4128ee9cfdc5c0670e25a3c128e7ae71c3011b48820"
+      "0": "4da1ed1abfd5d6afc23af6ae92e2fbe805ce8a00cfc692c4bce06cab9ead41e3"
     },
-    "issuedCount": 3,
-    "revokedCount": 0,
-    "acceptedCount": 0
+    "issuedCount": 2,
+    "revokedCount": 1,
+    "acceptedCount": 1
   },
   "transactions": [
-    { "kind": "deploy", "hash": "4090e6121155a91163b41cce1ce6b635109698e2b6e2e060d01c88a08f28a7f5", "block": 852657 },
-    { "kind": "call", "circuit": "claimAuthority", "hash": "5a0675cf2339dc8ab6a056465e61ecf8dd44485f38fcf5df77998f235beacd64", "block": 852669 },
-    { "kind": "call", "circuit": "registerLender", "hash": "c409e5b62478c69aaf2bbcf07121935e05b295f1f7c4947946f2f2bc11cfdf6d", "block": 852904 },
-    { "kind": "call", "circuit": "registerLender", "hash": "cd284670401d5ace8277150fded8921ede4c360bd15be2848eb6a597edf6d15b", "block": 852917 },
-    { "kind": "call", "circuit": "issueAttestation", "hash": "e1cb4858ebaf8fddc62a1a4a8e979d58de6a00dc2bbf38c7a227d4aac87f6e0d", "block": 853199 },
-    { "kind": "call", "circuit": "issueAttestation", "hash": "706d91af9e710afa70c05e8a24d788363105f2e90fde38f18d2f3d3faa4b3bf8", "block": 853258 },
-    { "kind": "call", "circuit": "issueAttestation", "hash": "57ed911ea3c060d97f6c9c14aa901d73fa1ebee91fdc6f5a6b49219b1dcc3f2f", "block": 859556 }
+    { "kind": "deploy", "hash": "26dcc60f4b63a1b038ba8840367ec453e43e78e43c47d9cd4eecac2842347b21", "block": 1182293 },
+    { "kind": "call", "circuit": "claimAuthority", "hash": "03395f31f9006177c4338b21b49c92f19779423ee710212ca47c3d492738b331", "block": 1182297 },
+    { "kind": "call", "circuit": "registerLender", "hash": "2d1cba52408764459949ed684a96a1182abb26f854be0b51dc91d5127584095d", "block": 1182301 },
+    { "kind": "call", "circuit": "registerLender", "hash": "f3c48f7a9765eb4b677a112be85a2a797ce609724ae01d0e3cc4ef84a5b4cde3", "block": 1182305 },
+    { "kind": "call", "circuit": "issueAttestation", "hash": "f8a073f46e5978f21f866e63ab744dcdaff37f50f668fb1c7ac061b93dce07df", "block": 1182309 },
+    { "kind": "call", "circuit": "issueAttestation", "hash": "4a664341539bbbc59d6a760e7c95e3dcd1c5f1acbaa1be67af86c08fa90293da", "block": 1182313 },
+    { "kind": "call", "circuit": "createCheck", "hash": "1801c83bd900b05797c1a76b11648149fcb04740da15207a270d58254a8b3194", "block": 1182317 },
+    { "kind": "call", "circuit": "proveCreditStanding", "hash": "9dc0772440f5c2227bc98d6a6c48193efe6a0de2a55a767e1149cb373939cf71", "block": 1182334 },
+    { "kind": "call", "circuit": "createCheck", "hash": "a5bd4460bf6e91a7b4c9e120c10f3820ad7dc60c8d109202b59b30d5409622eb", "block": 1182339 },
+    { "kind": "call", "circuit": "removeLender", "hash": "9adaca1444e15d912922c9b277e55a786404092aba1770a05af9a3ba14bd0e5e", "block": 1182343 },
+    { "kind": "call", "circuit": "revokeOrphanedAttestation", "hash": "dc5e1ad0d7ddb9572d9ce3e33f5c9d8f057a0c312484691b90951a9952c9d463", "block": 1182347 },
+    { "kind": "call", "circuit": "createCheck", "hash": "bd4d932007c875c8d89839548dabf0ba4aeda8617f1a759082dc71aea27e5adf", "block": 1182351 },
+    { "kind": "call", "circuit": "proposeAuthority", "hash": "b3770a64d5c2657bc4f87d3e6d980ddf5d38544f1a488e5219243dcf204eb48f", "block": 1182355 },
+    { "kind": "call", "circuit": "acceptAuthority", "hash": "7c6b3cac028f32fc5a6784b249d2b53316e141f4e328abf78efc07a23ad42b44", "block": 1182359 }
   ]
 }
