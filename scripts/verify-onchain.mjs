@@ -11,61 +11,16 @@
  * `npm run compact:check`, which skips proving keys and takes seconds.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
-import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
+import { readFileSync } from 'node:fs';
 import { evaluate } from './onchain-checks.mjs';
+import { readHistory, readSnapshot } from './onchain-read.mjs';
 
 const network = process.argv[2] ?? 'preview';
-const root = new URL('../', import.meta.url);
-const evidence = JSON.parse(readFileSync(new URL(`docs/evidence/${network}.json`, root), 'utf8'));
+const evidence = JSON.parse(readFileSync(new URL(`../docs/evidence/${network}.json`, import.meta.url), 'utf8'));
 const indexer = process.env.AMANA_INDEXER_URL ?? evidence.indexer;
 
-const bindings = new URL('contract/src/managed/amana/contract/index.js', root);
-if (!existsSync(fileURLToPath(bindings))) {
-  console.error('Contract bindings not found. Run `npm run compact:check` first (no proving keys needed).');
-  process.exit(2);
-}
-const { ledger } = await import(pathToFileURL(fileURLToPath(bindings)).href);
-
-const hex = (bytes) => Buffer.from(bytes).toString('hex');
-
-const readSnapshot = async () => {
-  setNetworkId(network);
-  const provider = indexerPublicDataProvider(indexer, indexer.replace(/^http/, 'ws') + '/ws', globalThis.WebSocket);
-  const state = await provider.queryContractState(evidence.contract);
-  if (!state) throw new Error(`No contract at ${evidence.contract} on ${network}.`);
-  const l = ledger(state.data);
-  const terms = (t) => ({ minOnTime: t.minOnTime, minPeriod: t.minPeriod, maxPeriod: t.maxPeriod });
-  return {
-    protocolVersion: l.protocolVersion, bootstrapped: l.bootstrapped, authority: hex(l.authority),
-    lenders: [...l.lenders].map(hex), issuers: [...l.issuers].map(([leaf, lender]) => [leaf, hex(lender)]),
-    nextLeaf: l.nextLeaf, issuedCount: l.issuedCount, revokedCount: l.revokedCount, acceptedCount: l.acceptedCount,
-    requestedChecks: [...l.requestedChecks].map(([id, t]) => [hex(id), terms(t)]),
-    checks: [...l.checks].map(([id, r]) => [hex(id), terms(r)]),
-    nullifierCount: l.nullifiers.size(),
-  };
-};
-
-/** Every transaction that touched the registry, newest first, with the circuit it called. */
-const readHistory = async () => {
-  const query = `{ contract(address: "${evidence.contract}") { actions(limit: 1000) {
-    __typename transaction { hash block { height } } ... on ContractCall { entryPoint } } } }`;
-  const response = await fetch(indexer, {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query }),
-  });
-  if (!response.ok) throw new Error(`Indexer returned HTTP ${response.status} for the registry history.`);
-  const actions = (await response.json()).data?.contract?.actions ?? [];
-  const kinds = { ContractDeploy: 'deploy', ContractCall: 'call', ContractUpdate: 'update' };
-  return actions.map((a) => ({
-    hash: a.transaction.hash, block: a.transaction.block.height, address: evidence.contract,
-    kind: kinds[a.__typename] ?? 'none', circuit: a.entryPoint ?? null,
-  }));
-};
-
-const snapshot = await readSnapshot();
-const history = await readHistory();
+const snapshot = await readSnapshot(network, indexer, evidence.contract);
+const history = await readHistory(indexer, evidence.contract);
 const transactions = new Map(evidence.transactions.map((tx) =>
   [tx.hash, history.find((h) => h.hash === tx.hash) ?? null]));
 const results = evaluate(evidence, snapshot, transactions);
