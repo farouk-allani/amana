@@ -11,8 +11,8 @@
 [![Verify](https://github.com/farouk-allani/amana/actions/workflows/verify.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/verify.yml)
 [![On-chain evidence](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml)
 ![Compact](https://img.shields.io/badge/Compact-0.23-d9a441)
-![Circuits](https://img.shields.io/badge/circuits-6-4ea882)
-![Tests](https://img.shields.io/badge/tests-72%20passing-4ea882)
+![Circuits](https://img.shields.io/badge/circuits-10-4ea882)
+![Tests](https://img.shields.io/badge/tests-87%20passing-4ea882)
 ![Network](https://img.shields.io/badge/Midnight-preview-8b5cf6)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
@@ -139,7 +139,7 @@ The product lives in the split between the two ledgers.
 | Public ledger | Private witnesses |
 |---|---|
 | Registry authority, admitted lender keys | Borrower's secret key |
-| Commitments, current Merkle root, leaf to issuer map | Per-lender borrower pseudonyms |
+| Commitments, Merkle roots since the last revocation, leaf to issuer map | Per-lender borrower pseudonyms |
 | Verifier keys, check IDs, thresholds, windows | Repayment counts and reporting intervals |
 | Results, nullifiers, aggregate counters | Contributing lender identities, slot flags |
 
@@ -147,20 +147,23 @@ Three design decisions carry the whole thing:
 
 **Per-lender pseudonyms.** A borrower's identifier at an institution is `H("amana:subject:", sk, lenderKey)`. Two institutions comparing their entire books cannot discover they share a customer, yet the circuit, which knows the secret, still aggregates across them. Unlinkable in public, aggregable in private.
 
-**Revocation by leaf overwrite.** An issuer voids a credential by overwriting its leaf with the tree default, so every path through it stops verifying. The tree is deliberately a plain `MerkleTree` and **not** a `HistoricMerkleTree`, because the historic variant accepts past roots and would silently defeat revocation. No public revoked-set is consulted, so revocation leaks nothing about the borrower.
+**Revocation by leaf overwrite.** An issuer voids a credential by overwriting its leaf with the tree default, so every path through it stops verifying. No public revoked-set is consulted, so revocation leaks nothing about the borrower. The tree is a `HistoricMerkleTree`: a proof built against any root since the last revocation is accepted, so other institutions issuing cannot race a borrower's proof out of validity. Every revocation clears that history, because a past root that still contains the voided leaf would let it keep proving.
 
 **Uniform proof shape.** Every proof performs exactly four live-root checks whether the borrower used one credential or four, so the number of institutions behind an answer never leaks. This is why `checkRoot` runs *before* the short-circuit: making a ledger read conditional on a witness would leak the borrower's credential count, and Compact's disclosure analysis correctly rejects it.
 
 ## Contract guarantees
 
-Six circuits in [`contract/src/amana.compact`](contract/src/amana.compact).
+Ten circuits in [`contract/src/amana.compact`](contract/src/amana.compact), protocol version 3. The [self-audit](docs/AUDIT.md) records what was reviewed, what was fixed and what remains.
 
 | Circuit | Guarantee |
 |---|---|
 | `claimAuthority` | Only the key committed at deployment can activate the registry, once. Knowing the address does not let a stranger front-run it. |
-| `registerLender` | Only that authority admits an issuer. |
+| `proposeAuthority`, `acceptAuthority` | The authority offers the registry to a new key, and nothing changes until that key proves control and accepts. A mistyped key cannot strand the registry. |
+| `registerLender` | Only the authority admits an issuer. |
+| `removeLender` | Only the authority withdraws one. A withdrawn institution can no longer issue or revoke. |
 | `issueAttestation` | Admitted issuer, key bound to the record, on-time ≤ scheduled, valid interval. Returns the allocated leaf index. |
-| `revokeAttestation` | Only the original issuer can void a leaf it issued. |
+| `revokeAttestation` | Only the original issuer can void a leaf it issued. Clears the root history. |
+| `revokeOrphanedAttestation` | The authority voids a record whose issuer has been withdrawn, and only such a record. Clears the root history. |
 | `createCheck` | Verifier-owned ID, non-zero recipient, positive threshold, valid immutable window. |
 | `proveCreditStanding` | Existing unanswered check, bound holder, live membership, full-interval containment, distinct lenders, sufficient count. |
 
@@ -181,7 +184,7 @@ Node 22.17+, Compact CLI 0.5.1, compiler 0.31.1, language 0.23. Install the CLI 
 
 ```sh
 npm ci
-npm run compact      # compiles six circuits, generates proving/verifying keys
+npm run compact      # compiles ten circuits, generates proving/verifying keys
 npm run typecheck
 npm test             # 63 tests
 npm run build
@@ -221,7 +224,7 @@ Valid network ids are `preview`, `preprod`, `mainnet` and `undeployed`. The reti
 
 The fastest honest path from a clean clone to seeing the privacy property hold:
 
-1. **Confirm the technical gate**, about two minutes. `npm ci && npm run compact` compiles six circuits and writes proving keys under `contract/src/managed/`.
+1. **Confirm the technical gate**, about two minutes. `npm ci && npm run compact` compiles ten circuits and writes proving keys under `contract/src/managed/`.
 2. **Check the live registry**, about ten seconds. `npm run verify:onchain` reads the deployed contract through the public preview indexer and checks it field by field: the authority, the admitted institutions, which institution issued each leaf, the counters, the recorded transactions and their blocks, plus invariants any honest registry must satisfy, such as one leaf per issued record and every answer matching the terms its verifier committed.
 3. **Run the adversarial suite**, about fifteen seconds. `npm test`. The interesting cases are not the happy path: `rejects squatting a known verifier ID even with its nonce`, `prevents a credentialed observer intercepting a public check`, `does not let a recent final payment make lifetime counts recent`, and `has an identical public transcript for one or four records`.
 4. **Drive the four roles.** Use separate browser profiles for operator, lender A, lender B, borrower and verifier. Role tabs inside one profile share an identity, so switching tabs does not create a second lender. Deploy a registry, activate it, admit both lender keys, issue 8/8 and 6/7 with matching intervals, run the five-step protocol at threshold 14, and read the result.
@@ -231,12 +234,12 @@ A monthly period is `(UTC year − 1970) × 12 + UTC month index`. September 202
 
 ## Quality evidence
 
-**72 passing tests.** 63 run against compiled circuits rather than mocks; 9 exercise the on-chain verifier against hand-built registry snapshots.
+**87 passing tests.** 78 run against compiled circuits rather than mocks; 9 exercise the on-chain verifier against hand-built registry snapshots.
 
-- **40 circuit tests** covering authority front-running, issuer impersonation, inflated counts, reversed intervals, ID squatting, term rewriting, check interception by a credentialed outsider, lifetime-count laundering, double-counted leaves, overlapping same-lender snapshots, revocation, and wrong-index liveness.
-- **23 API integration tests** covering the full lifecycle, wallet liveness on public revocation events, duplicate and malformed credential rejection, private-state cleanup after transaction failure, and operation serialization so concurrent issuance cannot overwrite pending witnesses.
+- **52 circuit tests** covering authority front-running and two-step handover, issuer withdrawal and voiding of its records, proofs in flight across issuance and revocation, issuer impersonation, inflated counts, reversed intervals, ID squatting, term rewriting, check interception by a credentialed outsider, lifetime-count laundering, double-counted leaves, overlapping same-lender snapshots, revocation, and wrong-index liveness.
+- **26 API integration tests** covering the full lifecycle, governance pre-checks that refuse before a transaction is paid for, wallet liveness on public revocation events, duplicate and malformed credential rejection, private-state cleanup after transaction failure, and operation serialization so concurrent issuance cannot overwrite pending witnesses.
 - **A privacy property written as a regression test.** `has an identical public transcript for one or four records satisfying the same check` executes the compiled circuit twice against the same ledger and check, once with one contributing credential and once with four, then asserts the complete public transcripts and public inputs are equal while the private transcripts differ.
-- **9 evidence-check tests** for `verify:onchain`. A matching registry passes, and later public activity counts as growth rather than failure. A changed authority, broken leaf accounting, an unadmitted issuer, an answer with altered terms, a shrunken counter or a misplaced transaction each fail.
+- **9 evidence-check tests** for `verify:onchain`. A matching registry passes, and later public activity counts as growth rather than failure. A withdrawn institution's records awaiting voiding are not a violation. A changed authority, broken leaf accounting, an answer with altered terms, a shrunken counter or a misplaced transaction each fail.
 
 Circuit tests execute generated Compact circuits against the local runtime. API tests simulate providers and finalization; they do not submit transactions or generate cryptographic proofs.
 
@@ -246,20 +249,22 @@ Stated plainly, because a privacy product that hides its own weaknesses is not o
 
 - **Issuer trust is the root.** Zero-knowledge proves a credential is authentic, bound to the holder and live. It cannot prove a real repayment happened. Registry admission and issuer audit remain required controls.
 - **Capacity.** Tree depth 10 gives 1,024 lifetime issuance positions and revocation does not free them. Four lenders per proof, 16-bit thresholds.
-- **Storage.** Identity keys and credentials sit unencrypted in browser localStorage. Encrypted storage, export and recovery are Wave 2 work.
+- **Storage.** Identity keys and credentials sit unencrypted in browser localStorage, with no recovery ([AUD-02](docs/AUDIT.md#aud-02)). Encrypted storage, export and recovery are Wave 2 work.
 - **Metadata.** Indexers see requests and IP addresses. Cryptographic unlinkability does not survive timing correlation, a small anonymity set, or an institution that already knows its customer through KYC.
 - **No trusted clock.** The verifier chooses the upper window bound; the chain asserts no date.
-- **Governance.** One authority key, no rotation, no lender removal circuit, no check expiry or per-verifier quota.
+- **Governance.** One authority key at a time, handed over in two steps but with no multi-party control. Withdrawing an institution voids its records one public transaction per leaf. No check expiry or per-verifier quota.
 
-Full analysis in [docs/PRIVACY.md](docs/PRIVACY.md).
+Full analysis in [docs/PRIVACY.md](docs/PRIVACY.md); every finding with its status in [docs/AUDIT.md](docs/AUDIT.md).
 
 ## Roadmap
 
-**Wave 2.** Encrypted private storage with export and recovery, including a split-key or social-recovery path so a lost phone does not turn a borrower back into a stranger. Larger tree or sharding with benchmarks. Issuance batching. Proving a *minimum count of distinct lenders* privately, since pairwise distinctness exists today but a minimum-count claim does not. Issuer governance and lender removal.
+**Wave 2, done so far.** Protocol version 3: the authority can withdraw an institution and void its records, and can hand the registry to a new key in two steps. Proofs in flight survive other institutions issuing. A published [self-audit](docs/AUDIT.md), and on-chain evidence re-checked daily in CI.
 
-**Wave 2, measured.** Two things the current design pays for and has not yet quantified. First, every issuance or revocation advances the Merkle root, so a proof built against the previous root fails on submission; the failure rate under concurrent issuance needs measuring, and a bounded recent-root window is the candidate fix that keeps revocation meaningful without the full-history acceptance that defeats it. Second, every derived value here (commitments, pseudonyms, nullifiers, response keys) lands in ledger state, so `persistentHash` is the correct primitive, but it is the non-circuit-optimised one and a single proof evaluates it around ten times; proving time on consumer hardware needs a number.
+**Wave 2, next.** Encrypted private storage with export and recovery, including a split-key or social-recovery path so a lost phone does not turn a borrower back into a stranger ([AUD-02](docs/AUDIT.md#aud-02)). A protocol 3 registry on preview with a full recorded run, including an answered check.
 
-**Wave 3.** Policy-banded disclosure, scoped verifier view keys, and an integration evaluation against synthetic institutional exports. An exploration of a loan-stacking signal: nullifiers are unlinkable by design, so counting a borrower's open checks needs an epoch-scoped construction that trades a bounded amount of unlinkability for it, and whether that trade is acceptable is a question for risk staff, not for the circuit.
+**Measured, not yet quantified.** Every derived value here (commitments, pseudonyms, nullifiers, response keys) lands in ledger state, so `persistentHash` is the correct primitive. It is the non-circuit-optimised one, though, and a single proof evaluates it around ten times. Proving time on consumer hardware needs a number, and it decides the next two items.
+
+**Wave 3.** Private issuer-set membership, which hides issuance volume and makes withdrawal instant ([AUD-06](docs/AUDIT.md#aud-06)). A larger tree or sharding, with benchmarks. Proving a *minimum count of distinct lenders* privately, since pairwise distinctness exists today but a minimum-count claim does not. Policy-banded disclosure, scoped verifier view keys, and an integration evaluation against synthetic institutional exports. An exploration of a loan-stacking signal: nullifiers are unlinkable by design, so counting a borrower's open checks needs an epoch-scoped construction that trades a bounded amount of unlinkability for it, and whether that trade is acceptable is a question for risk staff, not for the circuit.
 
 ## Ecosystem attribution
 
