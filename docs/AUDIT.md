@@ -102,7 +102,7 @@ The attestation tree was a plain `MerkleTree`, whose `checkRoot` accepts only th
 
 The README said the preview registry had "proofs verified against a local proof server". It read as though a borrower had answered a credit check on chain. The registry's public state shows two admitted institutions, three issued credentials and **zero** answered checks. The issuance transactions do carry proofs, but the product's core action had not happened on chain.
 
-**Fix.** The README now states exactly what is on chain and points to `npm run verify:onchain`, which checks it against the public indexer and runs daily in CI. Commits [`5d9d333`](https://github.com/farouk-allani/amana/commit/5d9d333), [`4fa1e96`](https://github.com/farouk-allani/amana/commit/4fa1e96) and [`5059db2`](https://github.com/farouk-allani/amana/commit/5059db2). The protocol 3 registry is to be deployed with a full recorded run, including an answered check.
+**Fix.** The README now states exactly what is on chain and points to `npm run verify:onchain`, which checks it against the public indexer and runs daily in CI. Commits [`5d9d333`](https://github.com/farouk-allani/amana/commit/5d9d333), [`4fa1e96`](https://github.com/farouk-allani/amana/commit/4fa1e96) and [`5059db2`](https://github.com/farouk-allani/amana/commit/5059db2). The protocol 3 registry has since run end to end on preview, with real proofs and an answered check; see the [run log](evidence/preview-run.md).
 
 ### AUD-06
 

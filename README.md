@@ -18,11 +18,11 @@
 
 **Portable private repayment history on Midnight.** (Arabic أمانة, "a trust placed in someone's hands.")
 
-> **Live on Midnight preview.** Registry contract `f49f9033e8cdb6f98ea53d2f8d7ea052be6ea5a710c542f147b93e75f3bbb8b8`, deployed in block 852,657 (transaction `4090e6121155a91163b41cce1ce6b635109698e2b6e2e060d01c88a08f28a7f5`). Two institutions admitted and three credentials issued on chain; no credit check has been answered on preview yet. Re-check all of it against the public indexer, with no wallet, using `npm run verify:onchain`. It compares the live registry with [the recorded evidence](docs/evidence/preview.json), and the same check runs daily in CI.
+> **Live on Midnight preview, protocol 3.** Registry `663c23414094c13a26ca98f476923a1d8b32bd631b9a83e3a3ad2a91df7d1c1e`, run end to end with real proofs: [14 transactions and 7 refusals](docs/evidence/preview-run.md). A borrower [proved on chain](https://preview.midnightexplorer.com/transactions/9dc0772440f5c2227bc98d6a6c48193efe6a0de2a55a767e1149cb373939cf71) that 8 + 6 on-time repayments from two institutions clear a threshold of 14, revealing neither institution nor the total. Forged counts, a voided record, an outsider answering someone else's check and a withdrawn institution issuing were all refused by the circuit, so nothing was sent. Re-check the chain side with no wallet using `npm run verify:onchain` (26 checks against [the recorded evidence](docs/evidence/preview.json), also run daily in CI), or repeat the whole run on a funded test wallet with `npm run evidence`.
 
 **Demo video:** [youtu.be/cTpo3uxrYkU](https://youtu.be/cTpo3uxrYkU) · **Pitch deck:** [12 slides, PDF](docs/amana-deck.pdf) · also on [Google Drive](https://drive.google.com/file/d/1cJu5Ot5Oxg7PVMRDGKsYANJPrSMDP7Xe/view?usp=sharing)
 
-**Hosted build:** [amana-rust.vercel.app](https://amana-rust.vercel.app/). It needs what any Midnight DApp needs on your side: the Lace Midnight Preview wallet on the preview network with a funded wallet, and a proof server running locally on `:6300` (see [Deploy to preview](#deploy-to-preview)). Then paste the registry address above and **Join registry**.
+**Hosted build:** [amana-rust.vercel.app](https://amana-rust.vercel.app/). It needs what any Midnight DApp needs on your side: the Lace Midnight Preview wallet on the preview network with a funded wallet, and a proof server running locally on `:6300` (see [Deploy to preview](#deploy-to-preview)). Then paste the registry address above and **Join registry** to act as a borrower or verifier, or deploy a registry of your own to drive all four roles.
 
 <p align="center">
   <img src="docs/assets/amana-app-showcase.png" alt="Amana borrower and verifier application interfaces showing a private repayment proof" width="1100">
@@ -225,7 +225,7 @@ Valid network ids are `preview`, `preprod`, `mainnet` and `undeployed`. The reti
 The fastest honest path from a clean clone to seeing the privacy property hold:
 
 1. **Confirm the technical gate**, about two minutes. `npm ci && npm run compact` compiles ten circuits and writes proving keys under `contract/src/managed/`.
-2. **Check the live registry**, about ten seconds. `npm run verify:onchain` reads the deployed contract through the public preview indexer and checks it field by field: the authority, the admitted institutions, which institution issued each leaf, the counters, the recorded transactions and their blocks, plus invariants any honest registry must satisfy, such as one leaf per issued record and every answer matching the terms its verifier committed.
+2. **Check the live registry**, about ten seconds. `npm run verify:onchain` reads the deployed contract through the public preview indexer and checks it field by field: the authority, the admitted institutions, which institution issued each leaf, the counters, the recorded transactions and their blocks, plus invariants any honest registry must satisfy, such as one leaf per issued record and every answer matching the terms its verifier committed. [The run log](docs/evidence/preview-run.md) shows what each of those transactions did, and every refusal the circuit made.
 3. **Run the adversarial suite**, about fifteen seconds. `npm test`. The interesting cases are not the happy path: `rejects squatting a known verifier ID even with its nonce`, `prevents a credentialed observer intercepting a public check`, `does not let a recent final payment make lifetime counts recent`, and `has an identical public transcript for one or four records`.
 4. **Drive the four roles.** Use separate browser profiles for operator, lender A, lender B, borrower and verifier. Role tabs inside one profile share an identity, so switching tabs does not create a second lender. Deploy a registry, activate it, admit both lender keys, issue 8/8 and 6/7 with matching intervals, run the five-step protocol at threshold 14, and read the result.
 5. **Break it.** Revoke lender A's leaf as lender A. The borrower's wallet marks the credential not live and a fresh check at 14 can no longer be answered. The circuit-level regression that bypasses the UI is `rejects a revoked witness but retains a historical accepted check`.
@@ -258,9 +258,9 @@ Full analysis in [docs/PRIVACY.md](docs/PRIVACY.md); every finding with its stat
 
 ## Roadmap
 
-**Wave 2, done so far.** Protocol version 3: the authority can withdraw an institution and void its records, and can hand the registry to a new key in two steps. Proofs in flight survive other institutions issuing. A published [self-audit](docs/AUDIT.md), and on-chain evidence re-checked daily in CI.
+**Wave 2, done so far.** Protocol version 3: the authority can withdraw an institution and void its records, and can hand the registry to a new key in two steps. Proofs in flight survive other institutions issuing. A published [self-audit](docs/AUDIT.md). A scripted run on preview with real proofs, including the first credit check answered on chain, and on-chain evidence re-checked daily in CI.
 
-**Wave 2, next.** Encrypted private storage with export and recovery, including a split-key or social-recovery path so a lost phone does not turn a borrower back into a stranger ([AUD-02](docs/AUDIT.md#aud-02)). A protocol 3 registry on preview with a full recorded run, including an answered check.
+**Wave 2, next.** Encrypted private storage with export and recovery, including a split-key or social-recovery path so a lost phone does not turn a borrower back into a stranger ([AUD-02](docs/AUDIT.md#aud-02)).
 
 **Measured, not yet quantified.** Every derived value here (commitments, pseudonyms, nullifiers, response keys) lands in ledger state, so `persistentHash` is the correct primitive. It is the non-circuit-optimised one, though, and a single proof evaluates it around ten times. Proving time on consumer hardware needs a number, and it decides the next two items.
 
