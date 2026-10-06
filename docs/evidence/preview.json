@@ -21,7 +21,11 @@
   },
   "transactions": [
     { "kind": "deploy", "hash": "4090e6121155a91163b41cce1ce6b635109698e2b6e2e060d01c88a08f28a7f5", "block": 852657 },
-    { "kind": "call", "hash": "706d91af9e710afa70c05e8a24d788363105f2e90fde38f18d2f3d3faa4b3bf8", "block": 853258 },
-    { "kind": "call", "hash": "57ed911ea3c060d97f6c9c14aa901d73fa1ebee91fdc6f5a6b49219b1dcc3f2f", "block": 859556 }
+    { "kind": "call", "circuit": "claimAuthority", "hash": "5a0675cf2339dc8ab6a056465e61ecf8dd44485f38fcf5df77998f235beacd64", "block": 852669 },
+    { "kind": "call", "circuit": "registerLender", "hash": "c409e5b62478c69aaf2bbcf07121935e05b295f1f7c4947946f2f2bc11cfdf6d", "block": 852904 },
+    { "kind": "call", "circuit": "registerLender", "hash": "cd284670401d5ace8277150fded8921ede4c360bd15be2848eb6a597edf6d15b", "block": 852917 },
+    { "kind": "call", "circuit": "issueAttestation", "hash": "e1cb4858ebaf8fddc62a1a4a8e979d58de6a00dc2bbf38c7a227d4aac87f6e0d", "block": 853199 },
+    { "kind": "call", "circuit": "issueAttestation", "hash": "706d91af9e710afa70c05e8a24d788363105f2e90fde38f18d2f3d3faa4b3bf8", "block": 853258 },
+    { "kind": "call", "circuit": "issueAttestation", "hash": "57ed911ea3c060d97f6c9c14aa901d73fa1ebee91fdc6f5a6b49219b1dcc3f2f", "block": 859556 }
   ]
 }
