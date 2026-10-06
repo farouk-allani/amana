@@ -157,6 +157,23 @@ export class AmanaSimulator {
     return this.getLedger();
   }
 
+  proposeAuthority(newAuthority: Uint8Array): Ledger {
+    this.circuitContext = this.contract.impureCircuits.proposeAuthority(
+      this.circuitContext,
+      newAuthority,
+    ).context;
+    this.save();
+    return this.getLedger();
+  }
+
+  acceptAuthority(): Ledger {
+    this.circuitContext = this.contract.impureCircuits.acceptAuthority(
+      this.circuitContext,
+    ).context;
+    this.save();
+    return this.getLedger();
+  }
+
   removeLender(lenderPublicKey: Uint8Array): Ledger {
     this.circuitContext = this.contract.impureCircuits.removeLender(
       this.circuitContext,

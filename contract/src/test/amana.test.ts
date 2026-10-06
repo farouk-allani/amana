@@ -66,6 +66,38 @@ describe('deployment and issuing authority', () => {
   });
 });
 
+describe('handing over the registry', () => {
+  const ZERO = new Uint8Array(32);
+  it('changes authority only when the offered key accepts', () => {
+    const s = setup();
+    const successor = s.lenderKeyOf('successor');
+    expect(toHex(s.as('authority').proposeAuthority(successor).pendingAuthority)).toBe(toHex(successor));
+    expect(toHex(s.getLedger().authority)).toBe(toHex(s.lenderKeyOf('authority')));
+    expect(() => s.as('stranger').acceptAuthority()).toThrow('only the offered key');
+    const l = s.as('successor').acceptAuthority();
+    expect(toHex(l.authority)).toBe(toHex(successor));
+    expect(toHex(l.pendingAuthority)).toBe(toHex(ZERO));
+    expect(() => s.as('authority').registerLender(s.lenderKeyOf('A'))).toThrow('only the authority');
+    expect(s.as('successor').registerLender(s.lenderKeyOf('A')).lenders.member(s.lenderKeyOf('A'))).toBe(true);
+  });
+  it('lets only the authority make an offer, and never to the zero key', () => {
+    const s = setup();
+    expect(() => s.as('stranger').proposeAuthority(s.lenderKeyOf('stranger'))).toThrow('only the authority may hand over');
+    expect(() => s.as('authority').proposeAuthority(ZERO)).toThrow('must not be zero');
+  });
+  it('refuses acceptance when nothing is offered', () => {
+    const s = setup();
+    expect(() => s.as('authority').acceptAuthority()).toThrow('no handover is pending');
+  });
+  it('replaces an earlier offer with a later one', () => {
+    const s = setup();
+    s.as('authority').proposeAuthority(s.lenderKeyOf('first'));
+    s.proposeAuthority(s.lenderKeyOf('second'));
+    expect(() => s.as('first').acceptAuthority()).toThrow('only the offered key');
+    expect(toHex(s.as('second').acceptAuthority().authority)).toBe(toHex(s.lenderKeyOf('second')));
+  });
+});
+
 describe('withdrawing an issuer', () => {
   it('lets only the authority remove an institution', () => {
     const s = setup('A');

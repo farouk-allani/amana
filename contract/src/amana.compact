@@ -82,6 +82,10 @@ export ledger protocolVersion: Uint<8>;
 export ledger authority: Bytes<32>;
 export ledger bootstrapped: Boolean;
 
+// A handover the authority has offered and the new key has not yet accepted.
+// All zero when none is pending.
+export ledger pendingAuthority: Bytes<32>;
+
 // Institutions permitted to issue attestations.
 export ledger lenders: Set<Bytes<32>>;
 
@@ -206,6 +210,27 @@ export circuit claimAuthority(): [] {
   assert(!bootstrapped, "registry already has an authority");
   assert(authority == disclose(lenderKey(localSecretKey())), "only the deployment authority may activate the registry");
   bootstrapped = true;
+}
+
+/**
+ * Offer the registry to a new authority key.
+ *
+ * Nothing changes until that key accepts, so a mistyped key cannot strand
+ * the registry. A later offer replaces an earlier one.
+ */
+export circuit proposeAuthority(newAuthority: Bytes<32>): [] {
+  assert(bootstrapped, "registry has no authority yet");
+  assert(authority == disclose(lenderKey(localSecretKey())), "only the authority may hand over the registry");
+  assert(newAuthority != default<Bytes<32>>, "authority key must not be zero");
+  pendingAuthority = disclose(newAuthority);
+}
+
+/** Take over the registry by proving control of the offered key. */
+export circuit acceptAuthority(): [] {
+  assert(pendingAuthority != default<Bytes<32>>, "no handover is pending");
+  assert(pendingAuthority == disclose(lenderKey(localSecretKey())), "only the offered key may accept the registry");
+  authority = pendingAuthority;
+  pendingAuthority = default<Bytes<32>>;
 }
 
 /** Admit an institution to the set permitted to issue attestations. */
