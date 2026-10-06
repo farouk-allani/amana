@@ -22,7 +22,10 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "ui": "npm run dev --workspace=amana-ui",
     "verify:onchain": "node scripts/verify-onchain.mjs",
-    "ci": "npm run compact && npm run typecheck && npm test && npm run build"
+    "ci": "npm run compact && npm run typecheck && npm test && npm run build",
+    "evidence:wallet": "node scripts/evidence/fund.mjs",
+    "evidence": "node scripts/evidence/run.mjs",
+    "evidence:record": "node scripts/evidence/record.mjs"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",

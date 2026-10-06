@@ -32,3 +32,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Scripted evidence run: test wallet seed and participants' private state
+/.evidence/
