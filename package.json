@@ -52,5 +52,8 @@
   },
   "resolutions": {
     "@midnight-ntwrk/wallet-sdk": "1.2.0"
+  },
+  "overrides": {
+    "@midnight-ntwrk/onchain-runtime-v3": "3.0.0"
   }
 }
