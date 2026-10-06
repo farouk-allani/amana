@@ -57,7 +57,8 @@ export const evaluate = (evidence, snapshot, transactions) => {
   check(`authority ${short(recorded.authority)}`, snapshot.authority === recorded.authority,
     `registry authority is ${short(snapshot.authority)}`);
   const missing = recorded.lenders.filter((l) => !lenders.has(l));
-  check(`${recorded.lenders.length} recorded institutions admitted`, missing.length === 0,
+  const n = recorded.lenders.length;
+  check(`${n} recorded institution${n === 1 ? '' : 's'} admitted`, missing.length === 0,
     `not admitted: ${missing.map(short).join(', ')}`);
   for (const [leaf, lender] of Object.entries(recorded.issuers)) {
     const now = issuers.get(leaf);

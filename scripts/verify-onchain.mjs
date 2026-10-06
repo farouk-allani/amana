@@ -31,8 +31,9 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.ok 
 const failed = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - failed} of ${results.length} checks passed.`);
 const orphaned = snapshot.issuers.filter(([, lender]) => !snapshot.lenders.includes(lender)).length;
-console.log(`Live now: ${snapshot.lenders.length} institutions, ${snapshot.issuedCount} records issued, `
-  + `${snapshot.revokedCount} revoked, ${snapshot.acceptedCount} credit checks answered`
+const count = (n, noun) => `${n} ${noun}${n === 1 || n === 1n ? '' : 's'}`;
+console.log(`Live now: ${count(snapshot.lenders.length, 'institution')}, ${count(snapshot.issuedCount, 'record')} issued, `
+  + `${snapshot.revokedCount} revoked, ${count(snapshot.acceptedCount, 'credit check')} answered`
   + (orphaned ? `, ${orphaned} records of withdrawn institutions awaiting voiding.` : '.'));
 const tally = new Map();
 for (const h of [...history].reverse()) tally.set(h.circuit ?? h.kind, (tally.get(h.circuit ?? h.kind) ?? 0) + 1);
