@@ -303,6 +303,27 @@ export class AmanaSimulator {
     return this.proveWithSelection(checkId, [...this.getPrivateState().presenting]);
   }
 
+  /**
+   * Answer a check with Merkle paths built against an earlier view of the
+   * ledger, as a borrower does whose proof is still in flight when the
+   * registry moves on. The circuit itself runs against the current ledger.
+   */
+  proveAgainst(checkId: Uint8Array, view: Ledger): Ledger {
+    const terms = view.requestedChecks.lookup(checkId);
+    this.mutate((ps) => ({ ...ps, presenting: selectAttestations(
+      ps.wallet.filter((s) => isLiveAttestation(view, s)), terms.minOnTime, terms.minPeriod, terms.maxPeriod) }));
+    const stale: typeof witnesses = {
+      ...witnesses,
+      heldAttestations: (ctx) => witnesses.heldAttestations({ ...ctx, ledger: view }),
+      heldPaths: (ctx) => witnesses.heldPaths({ ...ctx, ledger: view }),
+      heldUsed: (ctx) => witnesses.heldUsed({ ...ctx, ledger: view }),
+    };
+    this.circuitContext = new Contract<AmanaPrivateState>(stale).impureCircuits
+      .proveCreditStanding(this.circuitContext, checkId).context;
+    this.save();
+    return this.getLedger();
+  }
+
   proveWithSelection(checkId: Uint8Array, presenting: bigint[]): Ledger {
     this.mutate((ps) => ({ ...ps, presenting }));
     this.circuitContext = this.contract.impureCircuits.proveCreditStanding(this.circuitContext, checkId).context;

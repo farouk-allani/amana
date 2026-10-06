@@ -279,6 +279,29 @@ describe('revocation, selection, and replay', () => {
     s.as('amina').proveCreditStanding(id);
     expect(s.getPrivateState().presenting).toEqual([1n]);
   });
+  it('accepts a proof built before another lender issued', () => {
+    const s = setup('A', 'B'); s.as('A').issueTo('amina', record());
+    const id = request(s);
+    const view = s.getLedger();
+    s.as('B').issueTo('other', record());
+    expect(s.getLedger().attestations.root()).not.toEqual(view.attestations.root());
+    expect(s.as('amina').proveAgainst(id, view).checks.member(id)).toBe(true);
+  });
+  it('refuses a proof built before any revocation, even of another record', () => {
+    const s = setup('A', 'B'); s.as('A').issueTo('amina', record()); s.as('B').issueTo('other', record());
+    const id = request(s);
+    const view = s.getLedger();
+    s.as('B').revokeAttestation(1n);
+    expect(() => s.as('amina').proveAgainst(id, view)).toThrow('not live');
+  });
+  it('refuses a proof built before its own record was revoked', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    const id = request(s);
+    const view = s.getLedger();
+    s.as('A').issueTo('other', record());
+    s.revokeAttestation(0n);
+    expect(() => s.as('amina').proveAgainst(id, view)).toThrow('not live');
+  });
   it('does not consider the right commitment at the wrong index live', () => {
     const s = setup('A'); s.as('A').issueTo('amina', record());
     expect(isLiveAttestation(s.getLedger(), { ...s.walletOf('amina')[0], leafIndex: 1n })).toBe(false);
