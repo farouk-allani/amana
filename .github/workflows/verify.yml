@@ -14,17 +14,7 @@ jobs:
         with:
           node-version: '22.17.0'
           cache: npm
-      - name: Install Compact CLI 0.5.1 and compiler 0.31.1
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/compact-cli" "$RUNNER_TEMP/amana-bin"
-          curl --fail --location --retry 3 https://github.com/midnightntwrk/compact/releases/download/compact-v0.5.1/compact-x86_64-unknown-linux-musl.tar.xz -o "$RUNNER_TEMP/compact.tar.xz"
-          echo "684c6b3d2eef9484aabba7a0820c166ae5c169f3aecf28cbea2074840263ba66  $RUNNER_TEMP/compact.tar.xz" | sha256sum --check
-          tar -xf "$RUNNER_TEMP/compact.tar.xz" -C "$RUNNER_TEMP/compact-cli"
-          install "$(find "$RUNNER_TEMP/compact-cli" -type f -name compact)" "$RUNNER_TEMP/amana-bin/compact"
-          echo "$RUNNER_TEMP/amana-bin" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/amana-bin/compact" update 0.31.1
+      - uses: ./.github/actions/setup-compact
       - run: npm ci
       - run: npm run compact
       - run: npm run typecheck
