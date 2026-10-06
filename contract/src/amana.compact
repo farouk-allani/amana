@@ -115,7 +115,7 @@ export ledger revokedCount: Counter;
 export ledger acceptedCount: Counter;
 
 constructor(initialAuthority: Bytes<32>) {
-  protocolVersion = 2;
+  protocolVersion = 3;
   assert(initialAuthority != default<Bytes<32>>, "authority key must not be zero");
   authority = disclose(initialAuthority);
   bootstrapped = false;
@@ -215,6 +215,21 @@ export circuit registerLender(lender: Bytes<32>): [] {
   lenders.insert(disclose(lender));
 }
 
+/**
+ * Withdraw an institution's permission to issue and to revoke.
+ *
+ * Records it already issued stay live until the authority voids them with
+ * `revokeOrphanedAttestation`. A proof cannot itself check that its issuers
+ * are still admitted without disclosing which institutions they are, so
+ * withdrawal is a public, per-leaf clean-up instead.
+ */
+export circuit removeLender(lender: Bytes<32>): [] {
+  assert(bootstrapped, "registry has no authority yet");
+  assert(authority == disclose(lenderKey(localSecretKey())), "only the authority may remove lenders");
+  assert(lenders.member(disclose(lender)), "not a registered lender");
+  lenders.remove(disclose(lender));
+}
+
 // --- issuance --------------------------------------------------------------
 
 /**
@@ -257,6 +272,24 @@ export circuit revokeAttestation(index: Uint<64>): [] {
   assert(lenders.member(disclose(key)), "not a registered lender");
   assert(issuers.member(disclose(index)), "no attestation at that index");
   assert(issuers.lookup(disclose(index)) == disclose(key), "only the issuing lender may revoke");
+
+  attestations.insertIndexDefault(disclose(index));
+  issuers.remove(disclose(index));
+  revokedCount.increment(1);
+}
+
+/**
+ * Void a record whose issuer the authority has removed.
+ *
+ * The issuer-to-leaf map is already public, so this reveals nothing new: the
+ * authority learns which slots a withdrawn institution filled, never whose
+ * records they are. Records of institutions still admitted remain theirs
+ * alone to revoke.
+ */
+export circuit revokeOrphanedAttestation(index: Uint<64>): [] {
+  assert(authority == disclose(lenderKey(localSecretKey())), "only the authority may void orphaned records");
+  assert(issuers.member(disclose(index)), "no attestation at that index");
+  assert(!lenders.member(issuers.lookup(disclose(index))), "the issuer is still admitted and alone may revoke");
 
   attestations.insertIndexDefault(disclose(index));
   issuers.remove(disclose(index));

@@ -22,7 +22,7 @@ const request = (s: AmanaSimulator, n = 'check', borrower = 'amina', threshold =
 describe('deployment and issuing authority', () => {
   it('commits authority at deployment and rejects a front-run claim', () => {
     const s = new AmanaSimulator();
-    expect(s.getLedger().protocolVersion).toBe(2n);
+    expect(s.getLedger().protocolVersion).toBe(3n);
     expect(() => s.as('stranger').claimAuthority()).toThrow('only the deployment authority');
     expect(s.as('authority').claimAuthority().bootstrapped).toBe(true);
   });
@@ -63,6 +63,41 @@ describe('deployment and issuing authority', () => {
   it('rejects reversed reporting intervals', () => {
     const s = setup('A');
     expect(() => s.as('A').issueTo('amina', record(14n, NOW, FLOOR))).toThrow('invalid reporting interval');
+  });
+});
+
+describe('withdrawing an issuer', () => {
+  it('lets only the authority remove an institution', () => {
+    const s = setup('A');
+    expect(() => s.as('stranger').removeLender(s.lenderKeyOf('A'))).toThrow('only the authority may remove');
+    expect(() => s.as('authority').removeLender(s.lenderKeyOf('B'))).toThrow('not a registered lender');
+    expect(s.removeLender(s.lenderKeyOf('A')).lenders.member(s.lenderKeyOf('A'))).toBe(false);
+  });
+  it('stops a removed institution issuing or revoking', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    s.as('authority').removeLender(s.lenderKeyOf('A'));
+    expect(() => s.as('A').issueTo('amina', record())).toThrow('not a registered lender');
+    expect(() => s.as('A').revokeAttestation(0n)).toThrow('not a registered lender');
+  });
+  it('keeps its records live until the authority voids them, then refuses them', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    s.as('authority').removeLender(s.lenderKeyOf('A'));
+    expect(isLiveAttestation(s.getLedger(), s.walletOf('amina')[0])).toBe(true);
+    const l = s.as('authority').revokeOrphanedAttestation(0n);
+    expect(l.revokedCount).toBe(1n);
+    expect(isLiveAttestation(l, s.walletOf('amina')[0])).toBe(false);
+    const id = request(s);
+    expect(() => s.as('amina').proveWithSelection(id, [0n])).toThrow('not live');
+  });
+  it('leaves the records of admitted institutions to their issuer', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    expect(() => s.as('authority').revokeOrphanedAttestation(0n)).toThrow('still admitted');
+  });
+  it('lets only the authority void orphaned records', () => {
+    const s = setup('A'); s.as('A').issueTo('amina', record());
+    s.as('authority').removeLender(s.lenderKeyOf('A'));
+    expect(() => s.as('stranger').revokeOrphanedAttestation(0n)).toThrow('only the authority may void');
+    expect(() => s.as('authority').revokeOrphanedAttestation(1n)).toThrow('no attestation at that index');
   });
 });
 

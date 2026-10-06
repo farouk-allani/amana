@@ -157,6 +157,15 @@ export class AmanaSimulator {
     return this.getLedger();
   }
 
+  removeLender(lenderPublicKey: Uint8Array): Ledger {
+    this.circuitContext = this.contract.impureCircuits.removeLender(
+      this.circuitContext,
+      lenderPublicKey,
+    ).context;
+    this.save();
+    return this.getLedger();
+  }
+
   /**
    * Issue an attestation, as the currently active lender, to `borrower`.
    *
@@ -232,6 +241,15 @@ export class AmanaSimulator {
 
   revokeAttestation(index: bigint): Ledger {
     this.circuitContext = this.contract.impureCircuits.revokeAttestation(
+      this.circuitContext,
+      index,
+    ).context;
+    this.save();
+    return this.getLedger();
+  }
+
+  revokeOrphanedAttestation(index: bigint): Ledger {
+    this.circuitContext = this.contract.impureCircuits.revokeOrphanedAttestation(
       this.circuitContext,
       index,
     ).context;

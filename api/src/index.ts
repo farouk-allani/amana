@@ -199,8 +199,8 @@ export class AmanaAPI {
     const state = await providers.publicDataProvider.queryContractState(contractAddress);
     if (!state) throw new Error('Registry not found on the selected network.');
     try {
-      if (Amana.ledger(state.data).protocolVersion !== 2n) throw new Error('version');
-    } catch { throw new Error('Incompatible registry. This client requires a fresh Amana version 2 deployment.'); }
+      if (Amana.ledger(state.data).protocolVersion !== 3n) throw new Error('version');
+    } catch { throw new Error('Incompatible registry. This client requires an Amana protocol version 3 registry; deploy a fresh one.'); }
     providers.privateStateProvider.setContractAddress(contractAddress);
     const existing = await providers.privateStateProvider.get(amanaPrivateStateKey);
     const deployed = await findDeployedContract(providers, {
