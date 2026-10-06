@@ -52,9 +52,9 @@ The regulator's system closes half the gap. Under [ACM Note 34](https://www.acm.
 
 ## The solution
 
-Amana moves the evidence without moving the data. The issuing institution publishes an opaque 32-byte commitment and nothing else: no borrower, no amount, no count, no interval. The borrower holds the credential. When a second institution asks a question, the borrower answers that specific question with a zero-knowledge proof, and the verifier learns exactly one new fact: the bar was cleared.
+Amana moves the evidence without moving the data. The issuing institution publishes an opaque 32-byte commitment under its own registry key: no borrower, no amount, no count, no interval. The borrower holds the credential. When a second institution asks a question, the borrower answers that specific question with a zero-knowledge proof, and the verifier learns exactly one new fact: the bar was cleared.
 
-The issuer discloses nothing, not even that it was involved. The verifier gains a current, cryptographically authenticated, issuer-backed fact. The borrower's own record becomes portable property instead of a competitor's asset.
+When the borrower proves, the issuer discloses nothing, not even that it was involved. Issuance itself is visible: the chain shows which institution filed each commitment, and when ([AUD-06](docs/AUDIT.md#aud-06)). The verifier gains a current, cryptographically authenticated, issuer-backed fact. The borrower's own record becomes portable property instead of a competitor's asset.
 
 ```mermaid
 flowchart LR
