@@ -1,0 +1,27 @@
+name: On-chain evidence
+# Re-checks the deployed registry against docs/evidence/ through the public
+# indexer: on every push to main, daily, and on demand. Needs no secrets.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-onchain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.17.0'
+          cache: npm
+      - uses: ./.github/actions/setup-compact
+      - run: npm ci
+      - name: Compile ledger bindings (no proving keys)
+        run: npm run compact:check
+      - run: npm run test:scripts
+      - run: npm run verify:onchain
