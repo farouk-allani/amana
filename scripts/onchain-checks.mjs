@@ -72,10 +72,12 @@ export const evaluate = (evidence, snapshot, transactions) => {
   }
   for (const tx of evidence.transactions) {
     const found = transactions.get(tx.hash);
-    check(`${tx.kind} ${short(tx.hash)} in block ${tx.block.toLocaleString('en-US')}`,
-      found != null && found.block === tx.block && found.address === evidence.contract && found.kind === tx.kind,
-      found == null ? 'transaction not found'
-        : `found ${found.kind} in block ${found.block} touching ${short(found.address)}`);
+    const circuit = tx.circuit ?? null;
+    check(`${circuit ?? tx.kind} ${short(tx.hash)} in block ${tx.block.toLocaleString('en-US')}`,
+      found != null && found.block === tx.block && found.address === evidence.contract
+        && found.kind === tx.kind && (found.circuit ?? null) === circuit,
+      found == null ? 'transaction not found on this registry'
+        : `found ${found.circuit ?? found.kind} in block ${found.block} touching ${short(found.address)}`);
   }
   return results;
 };

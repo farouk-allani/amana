@@ -12,7 +12,8 @@ const evidence = {
   contract: CONTRACT,
   ledger: { protocolVersion: 2, authority: A, lenders: [A, B], issuers: { 0: A, 1: B },
     issuedCount: 2, revokedCount: 0, acceptedCount: 1 },
-  transactions: [{ kind: 'deploy', hash: DEPLOY, block: 10 }, { kind: 'call', hash: CALL, block: 12 }],
+  transactions: [{ kind: 'deploy', hash: DEPLOY, block: 10 },
+    { kind: 'call', circuit: 'issueAttestation', hash: CALL, block: 12 }],
 };
 const snapshot = () => ({
   protocolVersion: 2n, bootstrapped: true, authority: A, lenders: [A, B],
@@ -21,7 +22,7 @@ const snapshot = () => ({
 });
 const txs = () => new Map([
   [DEPLOY, { block: 10, address: CONTRACT, kind: 'deploy' }],
-  [CALL, { block: 12, address: CONTRACT, kind: 'call' }],
+  [CALL, { block: 12, address: CONTRACT, kind: 'call', circuit: 'issueAttestation' }],
 ]);
 const failures = (s = snapshot(), t = txs()) => evaluate(evidence, s, t).filter((r) => !r.ok).map((r) => r.name);
 
@@ -64,11 +65,12 @@ describe('on-chain evidence checks', () => {
     assert.ok(failures(s).includes('acceptedCount at least 1'));
   });
 
-  it('flag a transaction that is missing or in another block', () => {
+  it('flag a transaction that is missing, in another block, or calling another circuit', () => {
     const t = txs();
-    t.set(CALL, null);
-    assert.equal(failures(snapshot(), t).length, 1);
-    t.set(CALL, { block: 13, address: CONTRACT, kind: 'call' });
-    assert.equal(failures(snapshot(), t).length, 1);
+    for (const found of [null, { block: 13, address: CONTRACT, kind: 'call', circuit: 'issueAttestation' },
+      { block: 12, address: CONTRACT, kind: 'call', circuit: 'revokeAttestation' }]) {
+      t.set(CALL, found);
+      assert.deepEqual(failures(snapshot(), t), ['issueAttestation 22222222…2222 in block 12']);
+    }
   });
 });

@@ -48,23 +48,26 @@ const readSnapshot = async () => {
   };
 };
 
-const readTransaction = async (hash) => {
-  const query = `{ transactions(offset: { hash: "${hash}" }) {
-    block { height } contractActions { __typename address } } }`;
+/** Every transaction that touched the registry, newest first, with the circuit it called. */
+const readHistory = async () => {
+  const query = `{ contract(address: "${evidence.contract}") { actions(limit: 1000) {
+    __typename transaction { hash block { height } } ... on ContractCall { entryPoint } } } }`;
   const response = await fetch(indexer, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query }),
   });
-  if (!response.ok) throw new Error(`Indexer returned HTTP ${response.status} for ${hash}.`);
-  const tx = (await response.json()).data?.transactions?.[0];
-  if (!tx) return null;
-  const action = tx.contractActions.find((a) => a.address === evidence.contract) ?? tx.contractActions[0];
-  const kind = { ContractDeploy: 'deploy', ContractCall: 'call', ContractUpdate: 'update' }[action?.__typename];
-  return { block: tx.block.height, address: action?.address ?? '', kind: kind ?? 'none' };
+  if (!response.ok) throw new Error(`Indexer returned HTTP ${response.status} for the registry history.`);
+  const actions = (await response.json()).data?.contract?.actions ?? [];
+  const kinds = { ContractDeploy: 'deploy', ContractCall: 'call', ContractUpdate: 'update' };
+  return actions.map((a) => ({
+    hash: a.transaction.hash, block: a.transaction.block.height, address: evidence.contract,
+    kind: kinds[a.__typename] ?? 'none', circuit: a.entryPoint ?? null,
+  }));
 };
 
 const snapshot = await readSnapshot();
-const transactions = new Map(await Promise.all(
-  evidence.transactions.map(async (tx) => [tx.hash, await readTransaction(tx.hash)])));
+const history = await readHistory();
+const transactions = new Map(evidence.transactions.map((tx) =>
+  [tx.hash, history.find((h) => h.hash === tx.hash) ?? null]));
 const results = evaluate(evidence, snapshot, transactions);
 
 console.log(`Amana on-chain verification · ${network} · registry ${evidence.contract}`);
@@ -74,4 +77,8 @@ const failed = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - failed} of ${results.length} checks passed.`);
 console.log(`Live now: ${snapshot.lenders.length} institutions, ${snapshot.issuedCount} records issued, `
   + `${snapshot.revokedCount} revoked, ${snapshot.acceptedCount} credit checks answered.`);
+const tally = new Map();
+for (const h of [...history].reverse()) tally.set(h.circuit ?? h.kind, (tally.get(h.circuit ?? h.kind) ?? 0) + 1);
+console.log(`History: ${history.length} transactions · `
+  + [...tally].map(([name, n]) => (n > 1 ? `${n}× ${name}` : name)).join(', ') + '.');
 process.exitCode = failed === 0 ? 0 : 1;
