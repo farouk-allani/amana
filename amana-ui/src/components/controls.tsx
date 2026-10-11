@@ -206,7 +206,7 @@ export const Field: React.FC<{
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
-  const describedBy = [hint ? hintId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined;
+  const describedBy = (error ? errorId : hint ? hintId : '') || undefined;
 
   return (
     <div className={`field${error ? ' has-error' : ''} ${className ?? ''}`}>
@@ -219,7 +219,7 @@ export const Field: React.FC<{
         'aria-describedby': describedBy,
         'aria-invalid': error ? true : undefined,
       })}
-      {hint && (
+      {hint && !error && (
         <p className="field-hint" id={hintId}>
           {hint}
         </p>

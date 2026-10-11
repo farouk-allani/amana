@@ -644,3 +644,67 @@
     background-position: -200% 0;
   }
 }
+
+/* --- passphrase --------------------------------------------------------- */
+
+.passphrase {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.passphrase .input {
+  padding-right: 52px;
+}
+
+/* One reveal button, ours: Edge and IE draw their own as well. */
+.passphrase .input::-ms-reveal,
+.passphrase .input::-ms-clear {
+  display: none;
+}
+
+.passphrase .icon-button {
+  position: absolute;
+  right: 5px;
+}
+
+.dialog-link {
+  justify-self: start;
+  font-size: var(--fs-sm);
+}
+
+.confirm-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.confirm-check input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--red);
+}
+
+.device-button {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dur-1), background-color var(--dur-1);
+}
+
+.device-button:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.device-status b {
+  display: block;
+  color: var(--text);
+  font-weight: 650;
+}

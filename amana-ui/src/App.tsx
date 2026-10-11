@@ -4,13 +4,15 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import type { Logger } from 'pino';
-import { TriangleAlert } from 'lucide-react';
+import { LockKeyhole } from 'lucide-react';
 
 import { AmanaAPI, type AmanaDerivedState } from '../../api/src/index.js';
 import { AppContext, type AmanaClient } from './client.js';
 import { initialiseProviders } from './providers.js';
 import { Spinner } from './components/index.js';
 import { Connect } from './shell/Connect.jsx';
+import { UnlockDialog } from './shell/Unlock.jsx';
+import { browserVault } from './vault/browser-vault.js';
 import { isRole, Shell, type Role } from './shell/Shell.jsx';
 import { RegistryView } from './views/registry/RegistryView.jsx';
 import { IssuerView } from './views/issuer/IssuerView.jsx';
@@ -49,6 +51,9 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
   // form, or a proof in progress, exactly where it was.
   const [visited, setVisited] = useState<ReadonlySet<Role>>(() => new Set([roleFromHash()]));
   const [address, setAddress] = useState(readMemory);
+  const [vault] = useState(browserVault);
+  // The action waiting for the passphrase, if any.
+  const [unlockFor, setUnlockFor] = useState<'join' | 'deploy' | null>(null);
 
   const client = session.k === 'ready' ? session.client : null;
 
@@ -87,10 +92,22 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
 
   const start = useCallback(
     async (mode: 'deploy' | 'join') => {
+      if (!vault) {
+        setSession({
+          k: 'disconnected',
+          error: new Error('This browser does not allow Amana to store data, so it cannot keep your keys. Leave private browsing, or allow site storage.'),
+        });
+        return;
+      }
+      // Private data is encrypted: it needs the passphrase before anything else.
+      if (vault.state !== 'unlocked') {
+        setUnlockFor(mode);
+        return;
+      }
       setState(null);
       setSession({ k: 'connecting', mode });
       try {
-        const providers = await initialiseProviders(networkId, logger);
+        const providers = await initialiseProviders(networkId, vault, logger);
         const api =
           mode === 'deploy'
             ? await AmanaAPI.deploy(providers, logger)
@@ -107,7 +124,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
         setSession({ k: 'disconnected', error: e });
       }
     },
-    [address, logger, networkId],
+    [address, logger, networkId, vault],
   );
 
   const startSample = useCallback(() => {
@@ -124,17 +141,31 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
 
   if (!client) {
     return (
-      <Connect
-        networkId={networkId}
-        address={address}
-        onAddress={setAddress}
-        connecting={session.k === 'connecting' ? session.mode : null}
-        error={session.k === 'disconnected' ? (session.error ?? null) : null}
-        onDismissError={() => setSession({ k: 'disconnected' })}
-        onJoin={() => void start('join')}
-        onDeploy={() => void start('deploy')}
-        onSample={import.meta.env.DEV ? startSample : undefined}
-      />
+      <>
+        <Connect
+          networkId={networkId}
+          address={address}
+          onAddress={setAddress}
+          connecting={session.k === 'connecting' ? session.mode : null}
+          error={session.k === 'disconnected' ? (session.error ?? null) : null}
+          onDismissError={() => setSession({ k: 'disconnected' })}
+          onJoin={() => void start('join')}
+          onDeploy={() => void start('deploy')}
+          onSample={import.meta.env.DEV ? startSample : undefined}
+        />
+        {vault && (
+          <UnlockDialog
+            vault={vault}
+            open={unlockFor !== null}
+            onClose={() => setUnlockFor(null)}
+            onUnlocked={() => {
+              const mode = unlockFor;
+              setUnlockFor(null);
+              if (mode) void start(mode);
+            }}
+          />
+        )}
+      </>
     );
   }
 
@@ -163,10 +194,20 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
         registry={client.deployedContractAddress}
         sample={sample}
         deviceStatus={
-          <div className="device-status">
-            <TriangleAlert size={15} aria-hidden />
-            <span>Your key and records are stored in this browser, not yet encrypted.</span>
-          </div>
+          sample ? undefined : (
+            <button
+              type="button"
+              className="device-status device-button"
+              title="Lock: forget the key until the passphrase is entered again"
+              onClick={() => window.location.reload()}
+            >
+              <LockKeyhole size={15} aria-hidden />
+              <span>
+                <b>Encrypted in this browser</b>
+                Unlocked for this visit. Select to lock.
+              </span>
+            </button>
+          )
         }
       >
         {state ? (

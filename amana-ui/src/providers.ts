@@ -27,7 +27,7 @@ import type { Logger } from 'pino';
 
 import type { AmanaCircuitKeys, AmanaProviders, PrivateStateId } from '../../api/src/common-types.js';
 import type { AmanaPrivateState } from '../../contract/src/index.js';
-import { persistentPrivateStateProvider } from './persistent-private-state-provider.js';
+import { persistentPrivateStateProvider, type PrivateStore } from './persistent-private-state-provider.js';
 import { withStageReporting } from './stage-reporting.js';
 
 const COMPATIBLE_CONNECTOR_API_VERSION = '4.x';
@@ -86,6 +86,7 @@ export const connectToWallet = async (
  */
 export const initialiseProviders = async (
   networkId: string,
+  store: PrivateStore,
   logger?: Logger,
 ): Promise<AmanaProviders> => {
   const wallet = await connectToWallet(networkId, logger);
@@ -107,7 +108,8 @@ export const initialiseProviders = async (
 
   // Every transaction reports its stages to the progress panel as it goes.
   return withStageReporting({
-    privateStateProvider: persistentPrivateStateProvider<PrivateStateId, AmanaPrivateState>(),
+    // The unlocked vault: private state is sealed before it reaches storage.
+    privateStateProvider: persistentPrivateStateProvider<PrivateStateId, AmanaPrivateState>(store),
     zkConfigProvider,
     proofProvider: httpClientProofProvider(config.proverServerUri, zkConfigProvider),
     publicDataProvider: indexerPublicDataProvider(config.indexerUri, config.indexerWsUri,
