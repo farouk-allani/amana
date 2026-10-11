@@ -353,6 +353,10 @@
   letter-spacing: 0.02em;
 }
 
+.receipt-brand svg {
+  flex: none;
+}
+
 .receipt-brand span {
   color: var(--paper-ink);
 }

@@ -277,7 +277,7 @@
   font-size: var(--fs-sm);
 }
 
-.answer-waiting > span {
+.answer-waiting > span:not(.spin) {
   flex: 1;
   min-width: 220px;
 }

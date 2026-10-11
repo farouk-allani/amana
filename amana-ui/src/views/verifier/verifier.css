@@ -1,0 +1,128 @@
+/* Amana — portable private credit history.
+   Copyright (C) 2026 the Amana authors.
+   SPDX-License-Identifier: Apache-2.0 */
+
+.check-flow {
+  display: grid;
+  gap: var(--s-6);
+}
+
+.check-body {
+  display: grid;
+  gap: var(--s-5);
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--line);
+}
+
+.compose {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.compose-fields {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: start;
+}
+
+.compose-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+.compose-actions p {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.collect,
+.collect-form,
+.awaiting,
+.result {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.collect {
+  max-width: 760px;
+}
+
+.receipt-stage {
+  display: flex;
+  justify-content: center;
+  padding: var(--s-6) var(--s-4) var(--s-8);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(60% 70% at 50% 40%, rgba(217, 164, 65, 0.1), transparent 70%),
+    var(--ink-950);
+}
+
+.receipt-stage-compact {
+  padding: var(--s-4) var(--s-2) var(--s-6);
+}
+
+.flow-back {
+  justify-self: start;
+}
+
+/* --- recent checks ------------------------------------------------------ */
+
+.check-list {
+  display: grid;
+  gap: var(--s-2);
+  list-style: none;
+}
+
+.check-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+}
+
+.check-list li.is-active {
+  border-color: var(--gold-line);
+}
+
+.check-list-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.check-list-terms {
+  font-weight: 600;
+}
+
+.check-list-window {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.check-list-id {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .compose-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .check-list li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--s-2) var(--s-3);
+    padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+  }
+
+  .check-list-id {
+    display: none;
+  }
+}
