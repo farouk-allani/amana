@@ -1,0 +1,491 @@
+/* Amana — portable private credit history.
+   Copyright (C) 2026 the Amana authors.
+   SPDX-License-Identifier: Apache-2.0 */
+
+/* --- privacy split ------------------------------------------------------ */
+
+.privacy-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.privacy-col {
+  padding: var(--s-4) var(--s-5) var(--s-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.privacy-keeps {
+  border-color: var(--gold-line);
+  background:
+    linear-gradient(180deg, rgba(217, 164, 65, 0.08), transparent 70%),
+    var(--surface-2);
+}
+
+.privacy-col-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.privacy-col-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  background: var(--blue-soft);
+  color: var(--blue-text);
+}
+
+.privacy-keeps .privacy-col-icon {
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+
+.privacy-list {
+  display: grid;
+  gap: var(--s-2);
+  list-style: none;
+}
+
+.privacy-list li {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding-left: var(--s-5);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.privacy-list li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.5em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--blue-text);
+}
+
+.privacy-keeps .privacy-list li::before {
+  border-radius: 2px;
+  border-color: var(--gold-text);
+  background: var(--gold-soft);
+}
+
+.privacy-item-value {
+  flex: none;
+  max-width: 55%;
+  color: var(--text);
+  font-weight: 650;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.privacy-keeps .privacy-item-value {
+  color: var(--gold-text);
+}
+
+.privacy-note {
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .privacy-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- credential card ---------------------------------------------------- */
+
+.credential {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.credential-face {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-height: 206px;
+  padding: var(--s-5);
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(217, 164, 65, 0.34);
+  background:
+    linear-gradient(115deg, transparent 38%, rgba(240, 188, 92, 0.09) 50%, transparent 62%),
+    linear-gradient(140deg, #1d2745 0%, #141c33 46%, #0e1427 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 26px 50px -26px rgba(0, 0, 0, 0.85);
+  transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+
+.credential-guilloche {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    repeating-radial-gradient(circle at 105% -10%, rgba(217, 164, 65, 0.075) 0 1px, transparent 1px 10px),
+    repeating-radial-gradient(circle at -20% 130%, rgba(148, 163, 209, 0.05) 0 1px, transparent 1px 12px);
+  mask-image: linear-gradient(180deg, #000, rgba(0, 0, 0, 0.35));
+}
+
+.credential-watermark {
+  position: absolute;
+  z-index: -1;
+  right: -18px;
+  bottom: -26px;
+  color: var(--gold);
+  opacity: 0.08;
+}
+
+.credential-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.credential-issuer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.credential-kind {
+  color: var(--gold-text);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  font-stretch: var(--stretch-wide);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.credential-name {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.credential-figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-top: auto;
+}
+
+.credential-count {
+  font-size: 52px;
+  font-stretch: var(--stretch-display);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+}
+
+.credential-of {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.credential-meter {
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(148, 163, 209, 0.14);
+  overflow: hidden;
+}
+
+.credential-meter span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-strong));
+}
+
+.credential-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  font-size: var(--fs-xs);
+}
+
+.credential-period {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.credential-held {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-3);
+}
+
+.credential-revoked-note {
+  margin-top: calc(var(--s-2) * -1);
+  color: var(--red-text);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.credential.is-revoked .credential-face {
+  border-color: var(--red-line);
+  background: linear-gradient(140deg, #1a1d29 0%, #131620 100%);
+}
+
+.credential.is-revoked .credential-count {
+  color: var(--text-3);
+  text-decoration: line-through;
+  text-decoration-thickness: 3px;
+  text-decoration-color: rgba(217, 100, 95, 0.7);
+}
+
+.credential.is-revoked .credential-meter span {
+  background: var(--text-3);
+}
+
+.credential.is-revoked .credential-watermark,
+.credential.is-revoked .credential-guilloche {
+  opacity: 0.03;
+}
+
+.credential.is-selected .credential-face {
+  border-color: var(--gold);
+  box-shadow:
+    0 0 0 3px var(--gold-soft),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 26px 50px -26px rgba(0, 0, 0, 0.85);
+}
+
+.credential-mini .credential-face {
+  min-height: 0;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-radius: 14px;
+}
+
+.credential-mini .credential-count {
+  font-size: 34px;
+}
+
+.credential-mini .credential-name {
+  font-size: var(--fs-md);
+}
+
+.credential-mini .credential-held {
+  display: none;
+}
+
+.credential-extra {
+  padding: 0 var(--s-1);
+}
+
+/* --- receipt ------------------------------------------------------------ */
+
+.receipt {
+  position: relative;
+  align-self: start;
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 12px;
+  padding: var(--s-6) var(--s-7) var(--s-7);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(255, 255, 255, 0.6), transparent 70%),
+    var(--paper);
+  color: var(--paper-ink);
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.9);
+}
+
+/* A torn, scalloped bottom edge. */
+.receipt::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -11px;
+  height: 12px;
+  background: radial-gradient(circle at 8px 12px, transparent 6.5px, var(--paper) 7px) 0 0 / 16px 12px repeat-x;
+}
+
+.receipt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--paper-line);
+}
+
+.receipt-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--paper-gold);
+  font-weight: 800;
+  font-stretch: var(--stretch-wide);
+  letter-spacing: 0.02em;
+}
+
+.receipt-brand span {
+  color: var(--paper-ink);
+}
+
+.receipt-doc {
+  color: var(--paper-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  font-stretch: var(--stretch-wide);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.receipt-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: var(--s-6) 0 var(--s-4);
+  padding: 6px 14px 6px 10px;
+  border: 2px solid var(--paper-green);
+  border-radius: var(--r-sm);
+  color: var(--paper-green);
+  font-size: var(--fs-md);
+  font-weight: 800;
+  font-stretch: var(--stretch-wide);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: rotate(-2.5deg);
+  transform-origin: left center;
+  animation: stamp var(--dur-3) var(--ease-out);
+}
+
+@keyframes stamp {
+  from {
+    opacity: 0;
+    transform: rotate(-2.5deg) scale(1.25);
+  }
+}
+
+.receipt-awaiting .receipt-stamp {
+  border-style: dashed;
+  border-color: var(--paper-gold);
+  color: var(--paper-gold);
+  animation: none;
+}
+
+.receipt-statement {
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.receipt-statement b {
+  color: var(--paper-ink);
+  font-weight: 800;
+}
+
+.receipt-rows {
+  display: grid;
+  gap: 0;
+  margin: var(--s-5) 0 0;
+  border-top: 1.5px dashed var(--paper-line);
+}
+
+.receipt-rows > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-4);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--paper-line);
+  font-size: var(--fs-sm);
+}
+
+.receipt-rows dt {
+  color: var(--paper-muted);
+}
+
+.receipt-rows dd {
+  margin: 0;
+  font-weight: 650;
+  text-align: right;
+}
+
+.receipt-not {
+  margin-top: var(--s-5);
+}
+
+.receipt-not-title {
+  color: var(--paper-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  font-stretch: var(--stretch-wide);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.receipt-not ul {
+  display: grid;
+  gap: 4px;
+  margin-top: var(--s-2);
+  list-style: none;
+}
+
+.receipt-not li {
+  position: relative;
+  padding-left: var(--s-5);
+  color: var(--paper-ink);
+  font-size: var(--fs-sm);
+}
+
+.receipt-not li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.45em;
+  width: 9px;
+  height: 9px;
+  background:
+    linear-gradient(45deg, transparent 43%, var(--paper-muted) 43% 57%, transparent 57%),
+    linear-gradient(-45deg, transparent 43%, var(--paper-muted) 43% 57%, transparent 57%);
+}
+
+.receipt-extra {
+  margin-top: var(--s-4);
+}
+
+@media (max-width: 480px) {
+  .receipt {
+    padding: var(--s-5) var(--s-5) var(--s-6);
+  }
+
+  .receipt-statement {
+    font-size: var(--fs-lg);
+  }
+}

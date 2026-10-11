@@ -1,0 +1,385 @@
+/* Amana — portable private credit history.
+   Copyright (C) 2026 the Amana authors.
+   SPDX-License-Identifier: Apache-2.0 */
+
+/* --- stepper ------------------------------------------------------------ */
+
+.stepper-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  list-style: none;
+  counter-reset: step;
+}
+
+.stepper-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding-right: var(--s-3);
+  min-width: 0;
+}
+
+/* The connector to the next step. */
+.stepper-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 36px;
+  right: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--line-strong);
+}
+
+.stepper-step.is-done:not(:last-child)::after {
+  background: linear-gradient(90deg, var(--gold), rgba(217, 164, 65, 0.5));
+}
+
+.stepper-marker {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  background: var(--surface-1);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.stepper-label {
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.stepper-who {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.stepper-step.is-done .stepper-marker {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: var(--on-gold);
+}
+
+.stepper-step.is-done .stepper-label {
+  color: var(--text-2);
+}
+
+.stepper-step.is-current .stepper-marker {
+  border-color: var(--gold);
+  color: var(--gold-text);
+  box-shadow: 0 0 0 4px var(--gold-soft);
+}
+
+.stepper-step.is-current .stepper-label {
+  color: var(--text);
+}
+
+.stepper-step.is-current .stepper-who {
+  color: var(--gold-text);
+  font-weight: 600;
+}
+
+.stepper-step.is-waiting .stepper-marker {
+  border-style: dashed;
+  border-color: var(--text-3);
+  color: var(--text-2);
+}
+
+.stepper-step.is-waiting .stepper-label {
+  color: var(--text);
+}
+
+.stepper-compact {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .stepper-list {
+    display: none;
+  }
+
+  .stepper-compact {
+    display: block;
+  }
+
+  .stepper-bars {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+  }
+
+  .stepper-bar {
+    height: 4px;
+    border-radius: 4px;
+    background: var(--line-strong);
+  }
+
+  .stepper-bar.is-done {
+    background: var(--gold);
+  }
+
+  .stepper-bar.is-current {
+    background: linear-gradient(90deg, var(--gold) 40%, var(--line-strong) 40%);
+  }
+
+  .stepper-bar.is-waiting {
+    background: repeating-linear-gradient(90deg, var(--text-3) 0 4px, transparent 4px 7px);
+  }
+
+  .stepper-compact-text {
+    margin-top: var(--s-2);
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+  }
+
+  .stepper-compact-count {
+    color: var(--text-3);
+  }
+
+  .stepper-compact-who {
+    color: var(--gold-text);
+  }
+}
+
+/* --- transaction progress ----------------------------------------------- */
+
+.tx {
+  padding: var(--s-5);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(100% 120% at 0% 0%, rgba(217, 164, 65, 0.09), transparent 60%),
+    var(--surface-2);
+}
+
+.tx-failed {
+  border-color: var(--red-line);
+  background:
+    radial-gradient(100% 120% at 0% 0%, rgba(217, 100, 95, 0.09), transparent 60%),
+    var(--surface-2);
+}
+
+.tx-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.tx-head-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+
+.tx-failed .tx-head-icon {
+  background: var(--red-soft);
+  color: var(--red-text);
+}
+
+.tx-title {
+  font-weight: 700;
+  font-size: var(--fs-md);
+  line-height: 1.35;
+}
+
+.tx-meta {
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.tx-bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin: var(--s-4) 0 var(--s-4);
+}
+
+.tx-bar-seg {
+  position: relative;
+  height: 6px;
+  border-radius: 6px;
+  background: rgba(148, 163, 209, 0.16);
+  overflow: hidden;
+}
+
+.tx-bar-seg.is-done {
+  background: var(--gold);
+}
+
+.tx-bar-seg.is-failed {
+  background: var(--red);
+}
+
+.tx-bar-seg.is-active::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--gold) 50%, transparent);
+  animation: tx-sweep 1.6s var(--ease-in-out) infinite;
+}
+
+@keyframes tx-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tx-bar-seg.is-active::after {
+    animation: none;
+    background: rgba(217, 164, 65, 0.55);
+  }
+}
+
+.tx-stages {
+  display: grid;
+  gap: var(--s-1);
+  list-style: none;
+}
+
+.tx-stage {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: 6px 0;
+}
+
+.tx-stage-marker {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  color: var(--text-3);
+}
+
+.tx-stage.is-done .tx-stage-marker {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: var(--on-gold);
+}
+
+.tx-stage.is-active .tx-stage-marker {
+  border-color: var(--gold);
+  color: var(--gold-text);
+}
+
+.tx-stage.is-failed .tx-stage-marker {
+  border-color: transparent;
+  color: var(--red-text);
+}
+
+.tx-stage-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tx-stage-label {
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.tx-stage.is-done .tx-stage-label {
+  color: var(--text-2);
+}
+
+.tx-stage.is-active .tx-stage-label,
+.tx-stage.is-failed .tx-stage-label {
+  color: var(--text);
+}
+
+.tx-stage-detail {
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.tx-foot {
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.tx-failure {
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.tx-failure-actions {
+  display: flex;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.tx-done {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  border-color: var(--green-line);
+  background:
+    radial-gradient(100% 120% at 0% 0%, rgba(78, 168, 130, 0.12), transparent 60%),
+    var(--surface-2);
+  animation: tx-arrive var(--dur-3) var(--ease-out);
+}
+
+@keyframes tx-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.tx-done-icon {
+  flex: none;
+  color: var(--green-text);
+}
+
+.tx-done-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tx-done-text {
+  margin-top: 2px;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+}

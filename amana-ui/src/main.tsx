@@ -29,8 +29,21 @@ const logger = pino.pino({
   level: (import.meta.env.VITE_LOGGING_LEVEL as string) ?? 'info',
 });
 
+// Development only: `?gallery` shows every shared component. The condition is
+// a compile-time constant, so production builds drop the import entirely.
+const Gallery =
+  import.meta.env.DEV && new URLSearchParams(window.location.search).has('gallery')
+    ? React.lazy(() => import('./dev/Gallery.jsx'))
+    : null;
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <App logger={logger} networkId={networkId} />
+    {Gallery ? (
+      <React.Suspense fallback={null}>
+        <Gallery />
+      </React.Suspense>
+    ) : (
+      <App logger={logger} networkId={networkId} />
+    )}
   </React.StrictMode>,
 );
