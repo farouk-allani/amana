@@ -13,12 +13,12 @@ October 2026, protocol version 3. Covers [`amana.compact`](../contract/src/amana
 
 ## Summary
 
-13 findings. 4 fixed, 1 corrected in documentation with the design change deferred, 1 open and scheduled, 7 accepted with reasons.
+13 findings. 5 fixed, 1 corrected in documentation with the design change deferred, 7 accepted with reasons.
 
 | ID | Severity | Finding | Status |
 |---|---|---|---|
 | [AUD-01](#aud-01) | High | Trust in an issuer could never be withdrawn | **Fixed** |
-| [AUD-02](#aud-02) | High | Identity key and credentials stored unencrypted, with no recovery | Open, scheduled |
+| [AUD-02](#aud-02) | High | Identity key and credentials stored unencrypted, with no recovery | **Fixed** |
 | [AUD-03](#aud-03) | Medium | Registry authority key could not be rotated | **Fixed** |
 | [AUD-04](#aud-04) | Medium | Any issuance invalidated every proof in flight | **Fixed** |
 | [AUD-05](#aud-05) | Medium | README implied a credit check had been answered on preview | **Fixed** |
@@ -51,20 +51,26 @@ Protocol 2 had no way to remove an admitted institution, and only the issuer cou
 
 ### AUD-02
 
-**Identity key and credentials stored unencrypted, with no recovery.** High. Open, scheduled for Wave 2.
+**Identity key and credentials stored unencrypted, with no recovery.** High. Fixed.
 
-The browser private-state provider keeps the borrower's secret key and every credential as plain JSON in `localStorage`. Its export methods return the same plaintext in a field the SDK names `encryptedPayload`. Anyone who reads the browser profile, a synced backup, or the page's storage can:
+The browser private-state provider kept the borrower's secret key and every credential as plain JSON in `localStorage`. Its export methods returned the same plaintext in a field the SDK names `encryptedPayload`. Anyone who read the browser profile, a synced backup, or the page's storage could:
 - prove standing as the borrower;
 - compute the borrower's pseudonym at every admitted institution, linking the records the protocol exists to keep apart.
 
-There is also no recovery: clearing storage loses the key, and with it every credential.
+There was also no recovery: clearing storage lost the key, and with it every credential.
 
-**Plan.**
-- Encrypt at rest under a passphrase-derived key (WebCrypto, PBKDF2 and AES-GCM).
-- Encrypt the export file, and refuse plaintext export.
-- Add a recovery path, so a lost device doesn't turn the borrower back into a stranger.
+**Fix.**
+- **Encrypted at rest.** Every private value (each registry's private state and the signing keys) is sealed with AES-256-GCM before it reaches storage. The key comes from a passphrase through PBKDF2-SHA256 at 600,000 iterations with a random 32-byte salt, the parameters of the Midnight SDK's own encrypted provider. It is non-extractable and held only in memory while unlocked. Each value gets a fresh IV and is bound to its storage key as additional authenticated data, so a sealed value moved to another registry's slot fails to open. Commits [`f425625`](https://github.com/farouk-allani/amana/commit/f425625), [`73eabea`](https://github.com/farouk-allani/amana/commit/73eabea).
+- **An unlock step.** The passphrase is set or entered when it is first needed, on Join or Deploy. A wrong passphrase is reported as such, and a forgotten one is stated to be unrecoverable, with an explicit erase. Commit [`73eabea`](https://github.com/farouk-allani/amana/commit/73eabea).
+- **Migration.** Private values that earlier versions stored in clear are sealed when the passphrase is set, at every later unlock, and on first read. Commit [`f49a3fb`](https://github.com/farouk-allani/amana/commit/f49a3fb).
+- **Encrypted backup, and no plaintext export.** A backup is one file, re-encrypted under a fresh salt, that restores into this browser or another. The provider's SDK export methods now encrypt in the SDK's shape under a password of at least 16 characters and refuse without one. Commit [`ecf4e3b`](https://github.com/farouk-allani/amana/commit/ecf4e3b).
+- Tests: 15, in `vault.test.ts` and `persistent-private-state-provider.test.ts`, including that nothing private is stored in clear, that a wrong passphrase opens nothing, that a value swapped between registries is refused, and that a backup restores under a different browser passphrase.
 
-This needs an unlock step in the interface, so it lands with the Wave 2 interface work. It was already disclosed in PRIVACY.md.
+**Residual.**
+- While unlocked, the key is in the page's memory, so malicious code running in the page (a compromised dependency or browser extension) can read private state. Encryption at rest protects a profile, a synced copy or a stolen disk, not a compromised browser.
+- The passphrase is the only key. A weak one can be guessed offline from a copied profile or backup; PBKDF2 slows guessing but does not prevent it. Amana requires 12 characters and cannot reset a forgotten passphrase.
+- Recovery is the backup file plus the passphrase. Losing both still loses the record. A split-key or social recovery path, so that recovery does not depend on one person keeping one file, is future work.
+- Public values stay in clear: the last registry address, the check IDs a verifier drafted, a borrower's check in progress and an institution's display name. They are on chain or chosen to be shown.
 
 ### AUD-03
 

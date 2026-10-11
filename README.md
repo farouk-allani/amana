@@ -12,7 +12,7 @@
 [![On-chain evidence](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml)
 ![Compact](https://img.shields.io/badge/Compact-0.23-d9a441)
 ![Circuits](https://img.shields.io/badge/circuits-10-4ea882)
-![Tests](https://img.shields.io/badge/tests-87%20passing-4ea882)
+![Tests](https://img.shields.io/badge/tests-127%20passing-4ea882)
 ![Network](https://img.shields.io/badge/Midnight-preview-8b5cf6)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
@@ -186,7 +186,7 @@ Node 22.17+, Compact CLI 0.5.1, compiler 0.31.1, language 0.23. Install the CLI 
 npm ci
 npm run compact      # compiles ten circuits, generates proving/verifying keys
 npm run typecheck
-npm test             # 63 tests
+npm test             # 127 tests
 npm run build
 ```
 
@@ -234,11 +234,12 @@ A monthly period is `(UTC year − 1970) × 12 + UTC month index`. September 202
 
 ## Quality evidence
 
-**87 passing tests.** 78 run against compiled circuits rather than mocks; 9 exercise the on-chain verifier against hand-built registry snapshots.
+**127 passing tests.** 78 run against compiled circuits rather than mocks; 9 exercise the on-chain verifier against hand-built registry snapshots; 40 cover the interface's encrypted storage and its handling of transactions.
 
 - **52 circuit tests** covering authority front-running and two-step handover, issuer withdrawal and voiding of its records, proofs in flight across issuance and revocation, issuer impersonation, inflated counts, reversed intervals, ID squatting, term rewriting, check interception by a credentialed outsider, lifetime-count laundering, double-counted leaves, overlapping same-lender snapshots, revocation, and wrong-index liveness.
 - **26 API integration tests** covering the full lifecycle, governance pre-checks that refuse before a transaction is paid for, wallet liveness on public revocation events, duplicate and malformed credential rejection, private-state cleanup after transaction failure, and operation serialization so concurrent issuance cannot overwrite pending witnesses.
 - **A privacy property written as a regression test.** `has an identical public transcript for one or four records satisfying the same check` executes the compiled circuit twice against the same ledger and check, once with one contributing credential and once with four, then asserts the complete public transcripts and public inputs are equal while the private transcripts differ.
+- **40 interface tests.** Encrypted storage: nothing private is stored in clear, a wrong passphrase opens nothing, a value moved between registries is refused, data left in clear by earlier versions is sealed, a backup restores in another browser under a different passphrase, and plaintext export is refused. Also the plain-language explanation of wallet, proof-server, network and circuit failures, and the reporting of each transaction stage.
 - **9 evidence-check tests** for `verify:onchain`. A matching registry passes, and later public activity counts as growth rather than failure. A withdrawn institution's records awaiting voiding are not a violation. A changed authority, broken leaf accounting, an answer with altered terms, a shrunken counter or a misplaced transaction each fail.
 
 Circuit tests execute generated Compact circuits against the local runtime. API tests simulate providers and finalization; they do not submit transactions or generate cryptographic proofs.
@@ -249,7 +250,7 @@ Stated plainly, because a privacy product that hides its own weaknesses is not o
 
 - **Issuer trust is the root.** Zero-knowledge proves a credential is authentic, bound to the holder and live. It cannot prove a real repayment happened. Registry admission and issuer audit remain required controls.
 - **Capacity.** Tree depth 10 gives 1,024 lifetime issuance positions and revocation does not free them. Four lenders per proof, 16-bit thresholds.
-- **Storage.** Identity keys and credentials sit unencrypted in browser localStorage, with no recovery ([AUD-02](docs/AUDIT.md#aud-02)). Encrypted storage, export and recovery are Wave 2 work.
+- **Storage.** Identity keys and records are encrypted in the browser under a passphrase, with encrypted backups ([AUD-02](docs/AUDIT.md#aud-02)). While unlocked they are readable by code running in the page, a forgotten passphrase cannot be reset, and recovery depends on keeping a backup file; there is no split-key or social recovery yet.
 - **Metadata.** Indexers see requests and IP addresses. Cryptographic unlinkability does not survive timing correlation, a small anonymity set, or an institution that already knows its customer through KYC.
 - **No trusted clock.** The verifier chooses the upper window bound; the chain asserts no date.
 - **Governance.** One authority key at a time, handed over in two steps but with no multi-party control. Withdrawing an institution voids its records one public transaction per leaf. No check expiry or per-verifier quota.
@@ -258,9 +259,9 @@ Full analysis in [docs/PRIVACY.md](docs/PRIVACY.md); every finding with its stat
 
 ## Roadmap
 
-**Wave 2, done so far.** Protocol version 3: the authority can withdraw an institution and void its records, and can hand the registry to a new key in two steps. Proofs in flight survive other institutions issuing. A published [self-audit](docs/AUDIT.md). A scripted run on preview with real proofs, including the first credit check answered on chain, and on-chain evidence re-checked daily in CI.
+**Wave 2, done so far.** Protocol version 3: the authority can withdraw an institution and void its records, and can hand the registry to a new key in two steps. Proofs in flight survive other institutions issuing. A published [self-audit](docs/AUDIT.md). A scripted run on preview with real proofs, including the first credit check answered on chain, and on-chain evidence re-checked daily in CI. Private data encrypted in the browser under a passphrase, with encrypted backups ([AUD-02](docs/AUDIT.md#aud-02)).
 
-**Wave 2, next.** Encrypted private storage with export and recovery, including a split-key or social-recovery path so a lost phone does not turn a borrower back into a stranger ([AUD-02](docs/AUDIT.md#aud-02)).
+**Wave 2, next.** A split-key or social-recovery path, so that a lost phone and a lost backup file do not turn a borrower back into a stranger.
 
 **Measured, not yet quantified.** Every derived value here (commitments, pseudonyms, nullifiers, response keys) lands in ledger state, so `persistentHash` is the correct primitive. It is the non-circuit-optimised one, though, and a single proof evaluates it around ten times. Proving time on consumer hardware needs a number, and it decides the next two items.
 
