@@ -2,7 +2,6 @@
    Copyright (C) 2026 the Amana authors.
    SPDX-License-Identifier: Apache-2.0 */
 
-/* Order matters: tokens, then base, then components. */
+/* Order matters: tokens, then base. Components import their own styles. */
 @import './tokens.css';
 @import './base.css';
-@import './legacy.css';

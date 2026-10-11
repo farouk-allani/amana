@@ -18,7 +18,6 @@ import {
   Button,
   CopyButton,
   CredentialCard,
-  Dialog,
   EmptyState,
   Field,
   Input,
@@ -32,6 +31,7 @@ import {
   TechDetails,
   TechRow,
   Textarea,
+  TxDialog,
   TxProgress,
 } from '../../components/index.js';
 import { count, remember } from '../../format.js';
@@ -60,7 +60,6 @@ export const IssuerView: React.FC<{ api: AmanaClient; state: AmanaDerivedState }
   const [issued, setIssued] = useState<{ leaf: bigint; credential: string } | null>(null);
   const [revoking, setRevoking] = useState<bigint | null>(null);
   const issue = useTransaction();
-  const revoke = useTransaction();
 
   // Leaves this device issued that are still live.
   const mine = useMemo(
@@ -316,51 +315,21 @@ export const IssuerView: React.FC<{ api: AmanaClient; state: AmanaDerivedState }
         <p className="list-note">Revoked records leave this list. The registry keeps count of them.</p>
       </section>
 
-      <Dialog
+      <TxDialog
         open={revoking !== null}
-        onClose={() => {
-          if (revoke.status.phase !== 'running') {
-            setRevoking(null);
-            revoke.reset();
-          }
-        }}
+        onClose={() => setRevoking(null)}
         tone="danger"
-        dismissible={revoke.status.phase !== 'running'}
         icon={<Ban size={20} />}
         title={`Revoke record #${revoking?.toString() ?? ''}?`}
         description="The borrower will no longer be able to use it in a proof. Checks it already helped answer stay answered. Nothing published says whose record it was."
-        footer={
-          revoke.status.phase === 'idle' ? (
-            <>
-              <Button variant="ghost" onClick={() => setRevoking(null)}>
-                Keep it
-              </Button>
-              <Button variant="danger" onClick={() => void revoke.run(() => api.revokeAttestation(revoking!))}>
-                Revoke record
-              </Button>
-            </>
-          ) : revoke.status.phase === 'running' ? null : (
-            <Button
-              onClick={() => {
-                setRevoking(null);
-                revoke.reset();
-              }}
-            >
-              Close
-            </Button>
-          )
-        }
-      >
-        {revoke.status.phase !== 'idle' && (
-          <TxProgress
-            status={revoke.status}
-            title="Revoking the record"
-            expectedSeconds={EXPECTED_SECONDS.transaction}
-            successTitle="Record revoked"
-            successBody="Proofs can no longer use it."
-          />
-        )}
-      </Dialog>
+        confirmLabel="Revoke record"
+        cancelLabel="Keep it"
+        run={() => api.revokeAttestation(revoking ?? 0n)}
+        progressTitle="Revoking the record"
+        expectedSeconds={EXPECTED_SECONDS.transaction}
+        successTitle="Record revoked"
+        successBody="Proofs can no longer use it."
+      />
 
       <TechDetails>
         <TechRow label="Institution key" note="lender key" value={identity.lenderKey} />

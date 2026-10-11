@@ -12,7 +12,7 @@ import { initialiseProviders } from './providers.js';
 import { Spinner } from './components/index.js';
 import { Connect } from './shell/Connect.jsx';
 import { isRole, Shell, type Role } from './shell/Shell.jsx';
-import { RegistryView } from './views/Registry.jsx';
+import { RegistryView } from './views/registry/RegistryView.jsx';
 import { IssuerView } from './views/issuer/IssuerView.jsx';
 import { BorrowerView } from './views/borrower/BorrowerView.jsx';
 import { VerifierView } from './views/verifier/VerifierView.jsx';

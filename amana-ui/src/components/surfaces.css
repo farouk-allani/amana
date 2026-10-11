@@ -138,6 +138,29 @@
   padding: var(--s-5) var(--s-6) var(--s-6);
 }
 
+@media (max-width: 640px) {
+  .panel-head {
+    flex-wrap: wrap;
+    padding: var(--s-4) var(--s-4) 0;
+  }
+
+  .panel-head:only-child {
+    padding-bottom: var(--s-4);
+  }
+
+  .panel-icon {
+    display: none;
+  }
+
+  .panel-titles {
+    flex-basis: calc(100% - 120px);
+  }
+
+  .panel-body {
+    padding: var(--s-4);
+  }
+}
+
 /* --- status pill -------------------------------------------------------- */
 
 .pill {
@@ -560,6 +583,22 @@
   }
 }
 
+/* --- index badge: a record number ---------------------------------------- */
+
+.leaf-badge {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  height: 36px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 /* --- dialog ------------------------------------------------------------- */
 
 .dialog {
@@ -650,6 +689,22 @@
 
 .dialog-body {
   padding: var(--s-5) var(--s-6) 0;
+}
+
+.dialog-note {
+  margin-top: var(--s-2);
+  color: var(--gold-text);
+  font-size: var(--fs-xs);
+}
+
+.dialog-key {
+  display: block;
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-2);
+  font-size: 12px;
+  word-break: break-all;
 }
 
 .dialog-footer {

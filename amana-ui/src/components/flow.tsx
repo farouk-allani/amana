@@ -8,8 +8,9 @@ import React, { useEffect, useState } from 'react';
 import { Check, CircleCheck, CircleX, RotateCcw } from 'lucide-react';
 
 import { explainError } from '../errors.js';
-import { TX_STAGES, type TxStage, type TxStatus } from '../transactions.js';
+import { TX_STAGES, useTransaction, type TxStage, type TxStatus } from '../transactions.js';
 import { Button, Spinner } from './controls.jsx';
+import { Dialog } from './surfaces.jsx';
 import './flow.css';
 
 // --- stepper ---------------------------------------------------------------
@@ -253,5 +254,101 @@ export const TxProgress: React.FC<{
         <p className="tx-foot">Keep this page open until it is confirmed.</p>
       )}
     </div>
+  );
+};
+
+// --- confirm, then transact ------------------------------------------------
+
+/**
+ * A dialog that asks first, then runs one on-chain operation and shows its
+ * progress in place. It cannot be dismissed while the operation runs.
+ */
+export const TxDialog: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  icon?: React.ReactNode;
+  tone?: 'default' | 'danger';
+  confirmLabel: string;
+  cancelLabel?: string;
+  /** False while the form inside is incomplete. */
+  canConfirm?: boolean;
+  run: () => Promise<unknown>;
+  progressTitle: string;
+  expectedSeconds: number;
+  successTitle: React.ReactNode;
+  successBody?: React.ReactNode;
+  /** Called once the operation has succeeded. */
+  onDone?: () => void;
+  children?: React.ReactNode;
+}> = ({
+  open,
+  onClose,
+  title,
+  description,
+  icon,
+  tone = 'default',
+  confirmLabel,
+  cancelLabel = 'Cancel',
+  canConfirm = true,
+  run,
+  progressTitle,
+  expectedSeconds,
+  successTitle,
+  successBody,
+  onDone,
+  children,
+}) => {
+  const tx = useTransaction();
+  const close = () => {
+    if (tx.status.phase === 'running') return;
+    tx.reset();
+    onClose();
+  };
+  const go = () => void tx.run(run);
+
+  useEffect(() => {
+    if (tx.status.phase === 'done') onDone?.();
+    // Only when an operation completes.
+  }, [tx.status.phase]);
+
+  return (
+    <Dialog
+      open={open}
+      onClose={close}
+      title={title}
+      description={description}
+      icon={icon}
+      tone={tone}
+      dismissible={tx.status.phase !== 'running'}
+      footer={
+        tx.status.phase === 'idle' ? (
+          <>
+            <Button variant="ghost" onClick={close}>
+              {cancelLabel}
+            </Button>
+            <Button variant={tone === 'danger' ? 'danger' : 'primary'} disabled={!canConfirm} onClick={go}>
+              {confirmLabel}
+            </Button>
+          </>
+        ) : tx.status.phase === 'running' ? null : (
+          <Button onClick={close}>Close</Button>
+        )
+      }
+    >
+      {tx.status.phase === 'idle' ? (
+        children
+      ) : (
+        <TxProgress
+          status={tx.status}
+          title={progressTitle}
+          expectedSeconds={expectedSeconds}
+          successTitle={successTitle}
+          successBody={successBody}
+          onRetry={go}
+        />
+      )}
+    </Dialog>
   );
 };
