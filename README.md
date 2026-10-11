@@ -10,7 +10,7 @@
 
 [![Verify](https://github.com/farouk-allani/amana/actions/workflows/verify.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/verify.yml)
 [![On-chain evidence](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml)
-![Compact](https://img.shields.io/badge/Compact-0.23-d9a441)
+![Compact](https://img.shields.io/badge/Compact-0.23%E2%80%930.27-d9a441)
 ![Circuits](https://img.shields.io/badge/circuits-10-4ea882)
 ![Tests](https://img.shields.io/badge/tests-127%20passing-4ea882)
 ![Network](https://img.shields.io/badge/Midnight-preview-8b5cf6)
@@ -192,7 +192,7 @@ At most one summary per lender may contribute, so reissuing a cumulative snapsho
 
 ## Quick start
 
-Node 22.17+, Compact CLI 0.5.1, compiler 0.31.1, language 0.23. Install the CLI from the [pinned release](https://github.com/midnightntwrk/compact/releases/tag/compact-v0.5.1), then `compact update 0.31.1`.
+Node 22.17+, Compact CLI 0.5.1, compiler 0.31.1, language 0.23. Install the CLI from the [pinned release](https://github.com/midnightntwrk/compact/releases/tag/compact-v0.5.1), then `compact update 0.31.1`. Deploy with 0.31.x: preview, preprod and mainnet run ledger 8. The contract also compiles with the latest toolchain, 0.35.0 (language 0.27), and CI checks both.
 
 ```sh
 npm ci

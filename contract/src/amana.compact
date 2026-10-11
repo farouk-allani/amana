@@ -12,7 +12,10 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
-pragma language_version 0.23;
+// Compiles under language 0.23 (compiler 0.31.x), which the public networks
+// accept while they run ledger 8, and under 0.27 (compiler 0.35.x, ledger 9).
+// The 0.31.1 build is byte-identical to the one with an exact 0.23 pragma.
+pragma language_version >= 0.23 && <= 0.27;
 
 import CompactStandardLibrary;
 

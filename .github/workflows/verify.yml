@@ -27,3 +27,11 @@ jobs:
         # /zkir/<circuit>.bzkir at the origin root. A copy-plugin change once
         # nested them under the source path and every live transaction failed.
         run: test -s amana-ui/dist/keys/proveCreditStanding.verifier && test -s amana-ui/dist/zkir/proveCreditStanding.bzkir
+      - name: Check the contract also compiles with the latest Compact
+        # Deployments use the pinned 0.31.1, because preview, preprod and
+        # mainnet run ledger 8. A reviewer may compile with the newest
+        # toolchain instead, so that has to succeed too. Last step: it changes
+        # the default compiler.
+        run: |
+          compact update 0.35.0
+          compact compile --skip-zk contract/src/amana.compact "$RUNNER_TEMP/amana-latest"
