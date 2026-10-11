@@ -188,7 +188,7 @@ export const Connect: React.FC<{
             </Button>
           </div>
 
-          {onSample && (
+          {import.meta.env.DEV && onSample && (
             <div className="connect-sample">
               <span className="connect-sample-rule">
                 <span>Development build</span>
