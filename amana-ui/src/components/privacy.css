@@ -297,7 +297,8 @@
   font-size: var(--fs-md);
 }
 
-.credential-mini .credential-held {
+.credential-mini .credential-held,
+.credential-mini .credential-kind {
   display: none;
 }
 

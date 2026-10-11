@@ -14,7 +14,8 @@
 }
 
 .page-header-text {
-  max-width: 62ch;
+  flex: 1 1 480px;
+  max-width: 760px;
 }
 
 .page-eyebrow {
@@ -39,6 +40,7 @@
 }
 
 .page-lede {
+  max-width: 62ch;
   margin-top: var(--s-3);
   color: var(--text-2);
   font-size: var(--fs-lg);
@@ -49,6 +51,16 @@
   display: flex;
   gap: var(--s-2);
   flex-wrap: wrap;
+}
+
+@media (max-width: 560px) {
+  .page-header-actions {
+    width: 100%;
+  }
+
+  .page-header-actions .button {
+    flex: 1 1 auto;
+  }
 }
 
 /* --- panel -------------------------------------------------------------- */

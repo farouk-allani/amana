@@ -14,7 +14,7 @@ import { Connect } from './shell/Connect.jsx';
 import { isRole, Shell, type Role } from './shell/Shell.jsx';
 import { RegistryView } from './views/Registry.jsx';
 import { LenderView } from './views/Lender.jsx';
-import { BorrowerView } from './views/Borrower.jsx';
+import { BorrowerView } from './views/borrower/BorrowerView.jsx';
 import { VerifierView } from './views/Verifier.jsx';
 
 const ADDRESS_MEMORY = 'amana:last-contract-address';

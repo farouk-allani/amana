@@ -96,6 +96,11 @@ const LENDER_B = fake('institution b');
 const LENDER_C = fake('institution c');
 const LENDER_D = fake('institution d');
 const REGISTRY = fake('sample registry');
+const PENDING_CHECK = fake('check', 'pending');
+const ANSWERED_CHECK = fake('check', 'answered');
+
+// For screenshots and manual testing in development: the sample's check IDs.
+(window as unknown as { amanaSample?: object }).amanaSample = { pendingCheck: PENDING_CHECK, answeredCheck: ANSWERED_CHECK };
 
 /** Period index of a UTC year and month (1–12). */
 const month = (year: number, m: number): bigint => BigInt((year - 1970) * 12 + (m - 1));
@@ -142,6 +147,21 @@ class SampleRegistry implements AmanaClient {
       this.issued = 4n;
       this.revoked = 1n;
       this.answered = 1n;
+      // One check already committed to this device, and one answered, so the
+      // borrower's review and the verifier's receipt can be seen at once.
+      const now = utils.currentPeriod();
+      const terms = (id: string) => ({
+        verifier: bytes(fake('verifier', ME)),
+        recipient: bytes(fake('recipient', id, ME)),
+        minOnTime: 14n,
+        minPeriod: now - 23n,
+        maxPeriod: now,
+      });
+      this.checks.set(PENDING_CHECK, { terms: terms(PENDING_CHECK) });
+      this.checks.set(ANSWERED_CHECK, {
+        terms: terms(ANSWERED_CHECK),
+        result: { minOnTime: 14n, minPeriod: now - 23n, maxPeriod: now, nullifier: bytes(fake('nullifier')) },
+      });
       this.wallet = [
         { attestation: a, leafIndex: 0n, lenderName: 'Institution A', live: true },
         { attestation: b, leafIndex: 1n, lenderName: 'Institution B', live: true },
