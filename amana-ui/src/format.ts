@@ -4,7 +4,8 @@
 
 /** Small formatting helpers shared by the role screens. */
 
-import { utils } from '../../api/src/index.js';
+// The utilities alone: the API's index pulls in the Midnight runtime.
+import * as utils from '../../api/src/utils/index.js';
 
 /** "Jan 2025". */
 export const month = (period: bigint): string => utils.formatPeriod(period);

@@ -2,23 +2,24 @@
 // Copyright (C) 2026 the Amana authors.
 // SPDX-License-Identifier: Apache-2.0
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import type { Logger } from 'pino';
 import { LockKeyhole } from 'lucide-react';
 
-import { AmanaAPI, type AmanaDerivedState } from '../../api/src/index.js';
+import type { AmanaDerivedState } from '../../api/src/index.js';
 import { AppContext, type AmanaClient } from './client.js';
-import { initialiseProviders } from './providers.js';
 import { Alert, Spinner } from './components/index.js';
 import { Connect } from './shell/Connect.jsx';
 import { PrivateDataDialog } from './shell/PrivateData.jsx';
 import { UnlockDialog } from './shell/Unlock.jsx';
 import { browserVault } from './vault/browser-vault.js';
 import { isRole, Shell, type Role } from './shell/Shell.jsx';
-import { RegistryView } from './views/registry/RegistryView.jsx';
-import { IssuerView } from './views/issuer/IssuerView.jsx';
-import { BorrowerView } from './views/borrower/BorrowerView.jsx';
-import { VerifierView } from './views/verifier/VerifierView.jsx';
+
+// The Midnight SDK (about 14 MB with its WebAssembly) and the role screens
+// that need it load after the first paint, so the page never sits blank.
+const loadSdk = () => import('./sdk.js');
+const loadRoleScreen = () => import('./views/RoleScreen.jsx');
+const RoleScreen = lazy(loadRoleScreen);
 
 const ADDRESS_MEMORY = 'amana:last-contract-address';
 
@@ -58,6 +59,20 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
   const [privateData, setPrivateData] = useState<'home' | 'restore' | null>(null);
   // How many values from earlier versions were found in clear and sealed.
   const [migrated, setMigrated] = useState(0);
+  const [runtime, setRuntime] = useState<'loading' | 'ready' | 'failed'>('loading');
+
+  // Fetch the runtime once the first screen is up, so it is ready by the
+  // time someone presses Join.
+  useEffect(() => {
+    const later = (fn: () => void) =>
+      'requestIdleCallback' in window ? window.requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 300);
+    later(() => {
+      void loadSdk()
+        .then(() => setRuntime('ready'))
+        .catch(() => setRuntime('failed'));
+      void loadRoleScreen().catch(() => undefined);
+    });
+  }, []);
 
   const client = session.k === 'ready' ? session.client : null;
 
@@ -111,6 +126,8 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
       setState(null);
       setSession({ k: 'connecting', mode });
       try {
+        const { AmanaAPI, initialiseProviders } = await loadSdk();
+        setRuntime('ready');
         const providers = await initialiseProviders(networkId, vault, logger);
         const api =
           mode === 'deploy'
@@ -151,6 +168,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
           address={address}
           onAddress={setAddress}
           connecting={session.k === 'connecting' ? session.mode : null}
+          runtime={runtime}
           error={session.k === 'disconnected' ? (session.error ?? null) : null}
           onDismissError={() => setSession({ k: 'disconnected' })}
           onJoin={() => void start('join')}
@@ -187,20 +205,6 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
 
   const sample = session.k === 'ready' && session.sample;
 
-  const view = (r: Role) => {
-    if (!state) return null;
-    switch (r) {
-      case 'borrower':
-        return <BorrowerView api={client} state={state} />;
-      case 'verifier':
-        return <VerifierView api={client} state={state} />;
-      case 'issuer':
-        return <IssuerView api={client} state={state} />;
-      case 'registry':
-        return <RegistryView api={client} state={state} />;
-    }
-  };
-
   return (
     <AppContext.Provider value={{ networkId, sample }}>
       <Shell
@@ -231,16 +235,15 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
           </div>
         )}
         {state ? (
-          [...visited].map((r) => (
-            <div key={r} hidden={r !== role}>
-              {view(r)}
-            </div>
-          ))
+          <Suspense fallback={<Loading text="Loading the screens…" />}>
+            {[...visited].map((r) => (
+              <div key={r} hidden={r !== role}>
+                <RoleScreen role={r} api={client} state={state} />
+              </div>
+            ))}
+          </Suspense>
         ) : (
-          <div className="loading-screen" role="status">
-            <Spinner size={22} />
-            <p>Reading the registry from Midnight {networkId}…</p>
-          </div>
+          <Loading text={`Reading the registry from Midnight ${networkId}…`} />
         )}
       </Shell>
       {vault?.state === 'unlocked' && !sample && (
@@ -254,5 +257,12 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
     </AppContext.Provider>
   );
 };
+
+const Loading: React.FC<{ text: string }> = ({ text }) => (
+  <div className="loading-screen" role="status">
+    <Spinner size={22} />
+    <p>{text}</p>
+  </div>
+);
 
 export default App;

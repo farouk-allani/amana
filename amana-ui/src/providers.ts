@@ -8,7 +8,7 @@
  * @module
  */
 
-import { ConnectedAPI, type InitialAPI } from '@midnight-ntwrk/dapp-connector-api';
+import { ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
 import { FetchZkConfigProvider } from '@midnight-ntwrk/midnight-js-fetch-zk-config-provider';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
@@ -22,30 +22,13 @@ import {
   TransactionId,
 } from '@midnight-ntwrk/midnight-js-protocol/ledger';
 import type { UnboundTransaction } from '@midnight-ntwrk/midnight-js-types';
-import semver from 'semver';
 import type { Logger } from 'pino';
 
 import type { AmanaCircuitKeys, AmanaProviders, PrivateStateId } from '../../api/src/common-types.js';
 import type { AmanaPrivateState } from '../../contract/src/index.js';
 import { persistentPrivateStateProvider, type PrivateStore } from './persistent-private-state-provider.js';
 import { withStageReporting } from './stage-reporting.js';
-
-const COMPATIBLE_CONNECTOR_API_VERSION = '4.x';
-
-/** The first installed wallet whose connector API we can actually speak to. */
-const findWallet = (): InitialAPI | undefined => {
-  if (!window.midnight) return undefined;
-  return Object.values(window.midnight).find(
-    (wallet): wallet is InitialAPI =>
-      !!wallet &&
-      typeof wallet === 'object' &&
-      'apiVersion' in wallet &&
-      semver.satisfies((wallet as InitialAPI).apiVersion, COMPATIBLE_CONNECTOR_API_VERSION),
-  );
-};
-
-/** Whether a wallet this app can talk to has injected itself yet. */
-export const hasCompatibleWallet = (): boolean => findWallet() !== undefined;
+import { findWallet } from './wallet.js';
 
 export class WalletMissingError extends Error {
   constructor() {

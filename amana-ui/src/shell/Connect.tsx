@@ -7,9 +7,9 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, CircleCheck, CircleDashed, Cpu, FlaskConical, IdCard, LockKeyhole, ShieldCheck, Wallet } from 'lucide-react';
 
-import { Alert, Button, ErrorAlert, Field, Input } from '../components/index.js';
-import { hasCompatibleWallet } from '../providers.js';
-import { utils } from '../../../api/src/index.js';
+import { Alert, Button, ErrorAlert, Field, Input, Spinner } from '../components/index.js';
+import { hasCompatibleWallet } from '../wallet.js';
+import * as utils from '../../../api/src/utils/index.js';
 import { Lockup } from './Shell.jsx';
 
 /** The protocol 3 registry the scripted evidence run used on preview. */
@@ -38,6 +38,8 @@ export const Connect: React.FC<{
   address: string;
   onAddress: (value: string) => void;
   connecting: 'join' | 'deploy' | null;
+  /** The Midnight runtime loads after the first paint. */
+  runtime: 'loading' | 'ready' | 'failed';
   error: unknown;
   onDismissError: () => void;
   onJoin: () => void;
@@ -45,7 +47,7 @@ export const Connect: React.FC<{
   onRestore: () => void;
   /** Development builds only. */
   onSample?: () => void;
-}> = ({ networkId, address, onAddress, connecting, error, onDismissError, onJoin, onDeploy, onRestore, onSample }) => {
+}> = ({ networkId, address, onAddress, connecting, runtime, error, onDismissError, onJoin, onDeploy, onRestore, onSample }) => {
   const [wallet, setWallet] = useState<'checking' | 'found' | 'missing'>('checking');
 
   // The extension injects itself after the page's scripts may have run.
@@ -187,6 +189,17 @@ export const Connect: React.FC<{
             <Button variant="secondary" block loading={connecting === 'deploy'} disabled={connecting !== null} onClick={onDeploy}>
               Deploy a new registry
             </Button>
+            {runtime !== 'ready' && (
+              <p className="connect-runtime" role="status">
+                {runtime === 'loading' ? (
+                  <>
+                    <Spinner size={12} /> Loading the Midnight runtime in the background (about 14 MB, first visit only)
+                  </>
+                ) : (
+                  'The Midnight runtime did not load. Check your connection and reload the page.'
+                )}
+              </p>
+            )}
             <p className="connect-restore">
               New browser?{' '}
               <button type="button" className="link-button" onClick={onRestore}>
