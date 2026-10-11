@@ -46,9 +46,12 @@ export const UnlockDialog: React.FC<{
   vault: Vault;
   open: boolean;
   onClose: () => void;
-  onUnlocked: () => void;
+  /** With how many values earlier versions had stored in clear, now sealed. */
+  onUnlocked: (migrated: number) => void;
 }> = ({ vault, open, onClose, onUnlocked }) => {
   const creating = vault.state === 'new';
+  // Read when the dialog renders: identity keys and records left in clear.
+  const inClear = open ? vault.plaintextKeys().length : 0;
   const [pass, setPass] = useState('');
   const [again, setAgain] = useState('');
   const [busy, setBusy] = useState(false);
@@ -75,10 +78,9 @@ export const UnlockDialog: React.FC<{
     setBusy(true);
     setError(null);
     try {
-      if (creating) await vault.create(pass);
-      else await vault.unlock(pass);
+      const { migrated } = creating ? await vault.create(pass) : await vault.unlock(pass);
       reset();
-      onUnlocked();
+      onUnlocked(migrated);
     } catch (e) {
       setError(e);
     } finally {
@@ -129,6 +131,12 @@ export const UnlockDialog: React.FC<{
             if (ready && !busy) void submit();
           }}
         >
+          {creating && inClear > 0 && (
+            <Alert tone="info" title="Earlier data found">
+              An earlier version of Amana stored a key or records in this browser without encryption. They are
+              encrypted with this passphrase as soon as you set it.
+            </Alert>
+          )}
           <Field
             label="Passphrase"
             hint={creating ? `At least ${MIN_PASSPHRASE} characters. A few unrelated words are strong and easy to remember.` : undefined}

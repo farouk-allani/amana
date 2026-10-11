@@ -708,3 +708,7 @@
   color: var(--text);
   font-weight: 650;
 }
+
+.app-notice {
+  margin-bottom: var(--s-6);
+}

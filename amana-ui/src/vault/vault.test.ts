@@ -112,6 +112,41 @@ describe('Vault', () => {
     expect(storage.getItem('amana:last-contract-address')).toBe('public');
   });
 
+  it('seals private data an earlier version stored in clear, on first passphrase', async () => {
+    const storage = new MemoryStorage();
+    storage.setItem(STATE_KEY, JSON.stringify({ secretKey: SECRET }));
+    storage.setItem('amana:signing-keys', JSON.stringify({ k: SECRET }));
+    storage.setItem('amana:last-contract-address', 'public, left alone');
+    const vault = new Vault(storage, FAST);
+    expect(vault.plaintextKeys().sort()).toEqual(['amana:private-state:abc', 'amana:signing-keys']);
+    expect(await vault.create(PASS)).toEqual({ migrated: 2 });
+    expect(vault.plaintextKeys()).toEqual([]);
+    expect(storage.dump()).not.toContain(SECRET);
+    expect(storage.getItem('amana:last-contract-address')).toBe('public, left alone');
+    expect(await vault.get(STATE_KEY)).toBe(JSON.stringify({ secretKey: SECRET }));
+  });
+
+  it('seals data written in clear while locked, at the next unlock', async () => {
+    const storage = new MemoryStorage();
+    const vault = new Vault(storage, FAST);
+    await vault.create(PASS);
+    vault.lock();
+    storage.setItem('amana:private-state:late', SECRET);
+    const again = new Vault(storage, FAST);
+    expect(await again.unlock(PASS)).toEqual({ migrated: 1 });
+    expect(storage.dump()).not.toContain(SECRET);
+    expect(await again.get('amana:private-state:late')).toBe(SECRET);
+  });
+
+  it('seals a value in clear as soon as it is read', async () => {
+    const storage = new MemoryStorage();
+    const vault = new Vault(storage, FAST);
+    await vault.create(PASS);
+    storage.setItem(STATE_KEY, SECRET);
+    expect(await vault.get(STATE_KEY)).toBe(SECRET);
+    expect(storage.getItem(STATE_KEY)?.startsWith('amana-enc:v1:')).toBe(true);
+  });
+
   it('knows which keys hold private data', () => {
     expect(isPrivateKey('amana:private-state:0200ab')).toBe(true);
     expect(isPrivateKey('amana:signing-keys')).toBe(true);

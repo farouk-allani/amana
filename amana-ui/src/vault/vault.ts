@@ -102,10 +102,15 @@ export class Vault {
     return keys;
   }
 
+  /** Private values still stored in clear, from before encryption existed. */
+  plaintextKeys(): string[] {
+    return this.privateKeys().filter((k) => !(this.storage.getItem(k) ?? '').startsWith(SEALED));
+  }
+
   // --- lifecycle -----------------------------------------------------------
 
-  /** Set a passphrase for this browser. */
-  async create(passphrase: string): Promise<void> {
+  /** Set a passphrase for this browser, then encrypt anything stored in clear. */
+  async create(passphrase: string): Promise<{ migrated: number }> {
     if (this.header()) throw new Error('This browser already has an Amana passphrase. Unlock it instead.');
     const problem = checkPassphrase(passphrase);
     if (problem) throw new Error(problem);
@@ -120,11 +125,13 @@ export class Vault {
     };
     this.storage.setItem(VAULT_KEY, JSON.stringify(header));
     this.key = key;
+    return { migrated: await this.migrate() };
   }
 
-  /** Unlock with the passphrase. */
-  async unlock(passphrase: string): Promise<void> {
+  /** Unlock with the passphrase, then encrypt anything stored in clear since. */
+  async unlock(passphrase: string): Promise<{ migrated: number }> {
     this.key = await this.verify(passphrase);
+    return { migrated: await this.migrate() };
   }
 
   /** The key this passphrase derives, if it is the right one. */
@@ -152,6 +159,17 @@ export class Vault {
     this.key = null;
   }
 
+  /** Seal every private value still stored in clear. Returns how many. */
+  async migrate(): Promise<number> {
+    const key = this.requireKey();
+    const pending = this.plaintextKeys();
+    for (const k of pending) {
+      const value = this.storage.getItem(k);
+      if (value !== null) this.storage.setItem(k, SEALED + (await seal(key, value, k)));
+    }
+    return pending.length;
+  }
+
   private requireKey(): CryptoKey {
     if (!this.key) throw new LockedError();
     return this.key;
@@ -163,8 +181,11 @@ export class Vault {
     const key = this.requireKey();
     const raw = this.storage.getItem(k);
     if (raw === null) return null;
-    // Written in clear before encryption existed: read as-is, sealed on the next write.
-    if (!raw.startsWith(SEALED)) return raw;
+    if (!raw.startsWith(SEALED)) {
+      // Written in clear by something older: seal it now, then return it.
+      if (isPrivateKey(k)) this.storage.setItem(k, SEALED + (await seal(key, raw, k)));
+      return raw;
+    }
     return open(key, raw.slice(SEALED.length), k);
   }
 

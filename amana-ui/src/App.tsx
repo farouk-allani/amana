@@ -9,7 +9,7 @@ import { LockKeyhole } from 'lucide-react';
 import { AmanaAPI, type AmanaDerivedState } from '../../api/src/index.js';
 import { AppContext, type AmanaClient } from './client.js';
 import { initialiseProviders } from './providers.js';
-import { Spinner } from './components/index.js';
+import { Alert, Spinner } from './components/index.js';
 import { Connect } from './shell/Connect.jsx';
 import { UnlockDialog } from './shell/Unlock.jsx';
 import { browserVault } from './vault/browser-vault.js';
@@ -54,6 +54,8 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
   const [vault] = useState(browserVault);
   // The action waiting for the passphrase, if any.
   const [unlockFor, setUnlockFor] = useState<'join' | 'deploy' | null>(null);
+  // How many values from earlier versions were found in clear and sealed.
+  const [migrated, setMigrated] = useState(0);
 
   const client = session.k === 'ready' ? session.client : null;
 
@@ -158,9 +160,10 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
             vault={vault}
             open={unlockFor !== null}
             onClose={() => setUnlockFor(null)}
-            onUnlocked={() => {
+            onUnlocked={(count) => {
               const mode = unlockFor;
               setUnlockFor(null);
+              setMigrated(count);
               if (mode) void start(mode);
             }}
           />
@@ -210,6 +213,14 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
           )
         }
       >
+        {migrated > 0 && (
+          <div className="app-notice">
+            <Alert tone="success" title="Earlier data encrypted" onDismiss={() => setMigrated(0)}>
+              {migrated === 1 ? 'One private value' : `${migrated} private values`} that an earlier version stored in
+              clear {migrated === 1 ? 'is' : 'are'} now encrypted with your passphrase.
+            </Alert>
+          </div>
+        )}
         {state ? (
           [...visited].map((r) => (
             <div key={r} hidden={r !== role}>
