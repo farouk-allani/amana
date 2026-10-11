@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import './globals.js';
-import './styles.css';
+// Fonts are bundled rather than fetched from a font CDN: a privacy product
+// should not tell a third party who opened it.
+import '@fontsource-variable/archivo/wdth.css';
+import '@fontsource-variable/jetbrains-mono/index.css';
+import './styles/index.css';
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
