@@ -62,6 +62,31 @@ describe('persistentPrivateStateProvider on the vault', () => {
     await expect(provider.get('amanaPrivateStateV2')).rejects.toBeInstanceOf(LockedError);
   });
 
+  it('refuses to export private state in clear, or under a short password', async () => {
+    const { provider } = await setup();
+    await provider.set('amanaPrivateStateV2', { secretKey: SECRET, wallet: [] });
+    await expect(provider.exportPrivateStates()).rejects.toThrow(/plaintext export is disabled/);
+    await expect(provider.exportPrivateStates({ password: 'too short' })).rejects.toThrow(/at least 16/);
+    await expect(provider.exportSigningKeys()).rejects.toThrow(/plaintext export is disabled/);
+  });
+
+  it('exports encrypted in the SDK’s shape, and imports only with the password', async () => {
+    const { provider } = await setup();
+    await provider.set('amanaPrivateStateV2', { secretKey: SECRET, wallet: [{ onTime: 8n }] });
+    const password = 'a sixteen+ character password';
+    const exported = await provider.exportPrivateStates({ password });
+    expect(exported.format).toBe('midnight-private-state-export');
+    expect(exported.salt).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(exported)).not.toContain(SECRET_HEX);
+
+    const { provider: other } = await setup();
+    await expect(other.importPrivateStates(exported, { password: 'the wrong sixteen-char password' })).rejects.toThrow(
+      /does not open/,
+    );
+    expect(await other.importPrivateStates(exported, { password })).toEqual({ imported: 1, skipped: 0, overwritten: 0 });
+    expect((await other.get('amanaPrivateStateV2'))?.secretKey).toEqual(SECRET);
+  });
+
   it('keeps signing keys per contract and clears them', async () => {
     const { provider } = await setup();
     await provider.setSigningKey(ADDRESS as never, 'key-a');

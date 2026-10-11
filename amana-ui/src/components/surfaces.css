@@ -691,6 +691,10 @@
   padding: var(--s-5) var(--s-6) 0;
 }
 
+.dialog-body:last-child {
+  padding-bottom: var(--s-6);
+}
+
 .dialog-note {
   margin-top: var(--s-2);
   color: var(--gold-text);

@@ -11,6 +11,7 @@ import { AppContext, type AmanaClient } from './client.js';
 import { initialiseProviders } from './providers.js';
 import { Alert, Spinner } from './components/index.js';
 import { Connect } from './shell/Connect.jsx';
+import { PrivateDataDialog } from './shell/PrivateData.jsx';
 import { UnlockDialog } from './shell/Unlock.jsx';
 import { browserVault } from './vault/browser-vault.js';
 import { isRole, Shell, type Role } from './shell/Shell.jsx';
@@ -53,7 +54,8 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
   const [address, setAddress] = useState(readMemory);
   const [vault] = useState(browserVault);
   // The action waiting for the passphrase, if any.
-  const [unlockFor, setUnlockFor] = useState<'join' | 'deploy' | null>(null);
+  const [unlockFor, setUnlockFor] = useState<'join' | 'deploy' | 'restore' | null>(null);
+  const [privateData, setPrivateData] = useState<'home' | 'restore' | null>(null);
   // How many values from earlier versions were found in clear and sealed.
   const [migrated, setMigrated] = useState(0);
 
@@ -153,6 +155,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
           onDismissError={() => setSession({ k: 'disconnected' })}
           onJoin={() => void start('join')}
           onDeploy={() => void start('deploy')}
+          onRestore={() => (vault?.state === 'unlocked' ? setPrivateData('restore') : setUnlockFor('restore'))}
           onSample={import.meta.env.DEV ? startSample : undefined}
         />
         {vault && (
@@ -164,8 +167,18 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
               const mode = unlockFor;
               setUnlockFor(null);
               setMigrated(count);
-              if (mode) void start(mode);
+              if (mode === 'restore') setPrivateData('restore');
+              else if (mode) void start(mode);
             }}
+          />
+        )}
+        {vault?.state === 'unlocked' && (
+          <PrivateDataDialog
+            key={privateData ?? 'closed'}
+            vault={vault}
+            open={privateData !== null}
+            restoreFirst={privateData === 'restore'}
+            onClose={() => setPrivateData(null)}
           />
         )}
       </>
@@ -196,18 +209,14 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
         networkId={networkId}
         registry={client.deployedContractAddress}
         sample={sample}
+        onPrivateData={sample || !vault ? undefined : () => setPrivateData('home')}
         deviceStatus={
           sample ? undefined : (
-            <button
-              type="button"
-              className="device-status device-button"
-              title="Lock: forget the key until the passphrase is entered again"
-              onClick={() => window.location.reload()}
-            >
+            <button type="button" className="device-status device-button" onClick={() => setPrivateData('home')}>
               <LockKeyhole size={15} aria-hidden />
               <span>
                 <b>Encrypted in this browser</b>
-                Unlocked for this visit. Select to lock.
+                Back up, restore or lock.
               </span>
             </button>
           )
@@ -234,6 +243,14 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
           </div>
         )}
       </Shell>
+      {vault?.state === 'unlocked' && !sample && (
+        <PrivateDataDialog
+          key={privateData ?? 'closed'}
+          vault={vault}
+          open={privateData !== null}
+          onClose={() => setPrivateData(null)}
+        />
+      )}
     </AppContext.Provider>
   );
 };

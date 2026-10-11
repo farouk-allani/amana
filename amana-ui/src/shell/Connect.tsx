@@ -42,9 +42,10 @@ export const Connect: React.FC<{
   onDismissError: () => void;
   onJoin: () => void;
   onDeploy: () => void;
+  onRestore: () => void;
   /** Development builds only. */
   onSample?: () => void;
-}> = ({ networkId, address, onAddress, connecting, error, onDismissError, onJoin, onDeploy, onSample }) => {
+}> = ({ networkId, address, onAddress, connecting, error, onDismissError, onJoin, onDeploy, onRestore, onSample }) => {
   const [wallet, setWallet] = useState<'checking' | 'found' | 'missing'>('checking');
 
   // The extension injects itself after the page's scripts may have run.
@@ -186,6 +187,12 @@ export const Connect: React.FC<{
             <Button variant="secondary" block loading={connecting === 'deploy'} disabled={connecting !== null} onClick={onDeploy}>
               Deploy a new registry
             </Button>
+            <p className="connect-restore">
+              New browser?{' '}
+              <button type="button" className="link-button" onClick={onRestore}>
+                Restore your key and records from a backup
+              </button>
+            </p>
           </div>
 
           {import.meta.env.DEV && onSample && (

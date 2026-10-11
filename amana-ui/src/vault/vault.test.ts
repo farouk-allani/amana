@@ -147,6 +147,62 @@ describe('Vault', () => {
     expect(storage.getItem(STATE_KEY)?.startsWith('amana-enc:v1:')).toBe(true);
   });
 
+  it('backs up everything private, encrypted, and restores it in another browser', async () => {
+    const storage = new MemoryStorage();
+    const vault = new Vault(storage, FAST);
+    await vault.create(PASS);
+    await vault.set(STATE_KEY, SECRET);
+    await vault.set('amana:signing-keys', 'keys-' + SECRET);
+    const backup = await vault.exportBackup(PASS);
+    expect(backup).not.toContain(SECRET);
+    expect(JSON.parse(backup)).toMatchObject({ format: 'amana-backup', v: 1, kdf: 'PBKDF2-SHA256' });
+
+    const elsewhere = new MemoryStorage();
+    const fresh = new Vault(elsewhere, FAST);
+    await fresh.create('a different passphrase here');
+    expect(await fresh.importBackup(backup, PASS)).toEqual({ imported: 2, skipped: 0, overwritten: 0 });
+    expect(await fresh.get(STATE_KEY)).toBe(SECRET);
+    expect(elsewhere.dump()).not.toContain(SECRET);
+  });
+
+  it('asks for the passphrase again before exporting, and refuses a wrong one', async () => {
+    const vault = new Vault(new MemoryStorage(), FAST);
+    await vault.create(PASS);
+    await expect(vault.exportBackup('not the passphrase at all')).rejects.toBeInstanceOf(WrongPassphraseError);
+  });
+
+  it('will not open a backup with the wrong passphrase', async () => {
+    const vault = new Vault(new MemoryStorage(), FAST);
+    await vault.create(PASS);
+    await vault.set(STATE_KEY, SECRET);
+    const backup = await vault.exportBackup(PASS);
+    const other = new Vault(new MemoryStorage(), FAST);
+    await other.create('a different passphrase here');
+    await expect(other.importBackup(backup, 'a different passphrase here')).rejects.toBeInstanceOf(WrongPassphraseError);
+  });
+
+  it('keeps what is already here unless asked to replace it', async () => {
+    const vault = new Vault(new MemoryStorage(), FAST);
+    await vault.create(PASS);
+    await vault.set(STATE_KEY, 'from the backup');
+    const backup = await vault.exportBackup(PASS);
+    await vault.set(STATE_KEY, 'already here');
+    expect(await vault.importBackup(backup, PASS)).toEqual({ imported: 0, skipped: 1, overwritten: 0 });
+    expect(await vault.get(STATE_KEY)).toBe('already here');
+    expect(await vault.importBackup(backup, PASS, true)).toEqual({ imported: 0, skipped: 0, overwritten: 1 });
+    expect(await vault.get(STATE_KEY)).toBe('from the backup');
+  });
+
+  it('refuses files that are not backups, or that set their own work factor', async () => {
+    const vault = new Vault(new MemoryStorage(), FAST);
+    await vault.create(PASS);
+    await expect(vault.importBackup('{"hello":1}', PASS)).rejects.toThrow(/not an Amana backup/);
+    await expect(vault.importBackup('not json', PASS)).rejects.toThrow(/not an Amana backup/);
+    const backup = JSON.parse(await vault.exportBackup(PASS)) as Record<string, unknown>;
+    const greedy = JSON.stringify({ ...backup, iterations: 1e12 });
+    await expect(vault.importBackup(greedy, PASS)).rejects.toThrow(/not an Amana backup/);
+  });
+
   it('knows which keys hold private data', () => {
     expect(isPrivateKey('amana:private-state:0200ab')).toBe(true);
     expect(isPrivateKey('amana:signing-keys')).toBe(true);

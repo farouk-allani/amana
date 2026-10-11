@@ -712,3 +712,60 @@
 .app-notice {
   margin-bottom: var(--s-6);
 }
+
+/* --- private data dialog ------------------------------------------------ */
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  width: 100%;
+  padding: var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+  transition: border-color var(--dur-1), background-color var(--dur-1);
+}
+
+.choice:hover {
+  border-color: var(--gold-line);
+  background: var(--surface-3);
+}
+
+.choice-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md);
+  background: var(--gold-soft);
+  color: var(--gold-text);
+}
+
+.choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.choice-text span {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.dialog-inline-end {
+  justify-content: flex-end;
+}
+
+.topbar-private {
+  color: var(--gold-text);
+}
+
+.connect-restore {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  text-align: center;
+}

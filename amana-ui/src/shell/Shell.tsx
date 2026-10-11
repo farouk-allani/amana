@@ -7,7 +7,7 @@
 import React from 'react';
 import { IdCard, Landmark, LockKeyhole, Scale, ShieldCheck, type LucideIcon } from 'lucide-react';
 
-import { CopyButton, StatusPill, shortHex } from '../components/index.js';
+import { CopyButton, IconButton, StatusPill, shortHex } from '../components/index.js';
 import amanaLockup from '../../../docs/assets/amana-lockup-light.png';
 import './shell.css';
 
@@ -47,8 +47,10 @@ export const Shell: React.FC<{
   sample: boolean;
   /** Extra items for the sidebar foot, such as the private-data status. */
   deviceStatus?: React.ReactNode;
+  /** Opens the private-data dialog, from the top bar. */
+  onPrivateData?: () => void;
   children: React.ReactNode;
-}> = ({ role, onRole, networkId, registry, sample, deviceStatus, children }) => (
+}> = ({ role, onRole, networkId, registry, sample, deviceStatus, onPrivateData, children }) => (
   <div className="app">
     <a className="skip-link" href="#main">
       Skip to content
@@ -110,6 +112,11 @@ export const Shell: React.FC<{
             <code className="registry-chip-value">{shortHex(registry, 6, 4)}</code>
             <CopyButton compact value={registry} label="Copy registry address" />
           </div>
+          {onPrivateData && (
+            <IconButton label="Your private data" className="topbar-private" onClick={onPrivateData}>
+              <LockKeyhole size={17} aria-hidden />
+            </IconButton>
+          )}
         </div>
       </header>
 

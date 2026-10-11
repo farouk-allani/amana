@@ -26,6 +26,7 @@ import type {
   ContractAddress,
   SigningKey,
 } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
+import { deriveKey, fromHex, open, randomBytes, seal, toHex } from './vault/crypto.js';
 import type {
   ExportPrivateStatesOptions,
   ExportSigningKeysOptions,
@@ -81,6 +82,38 @@ export const decodePrivateState = <T>(value: string): T => JSON.parse(value, rev
 
 const NAMESPACE = 'amana:private-state';
 const SIGNING_NAMESPACE = 'amana:signing-keys';
+
+/** The SDK's interface asks export passwords to be at least this long. */
+const MIN_EXPORT_PASSWORD = 16;
+
+/**
+ * Exports are always encrypted. The SDK lets a provider fall back to its
+ * storage password when none is given; Amana has no such password to fall
+ * back on, and will not hand out private state in clear, so it refuses.
+ */
+const requirePassword = (password: string | undefined, what: string): string => {
+  if (!password) throw new Error(`Amana does not export ${what} without a password; plaintext export is disabled.`);
+  if (password.length < MIN_EXPORT_PASSWORD)
+    throw new Error(`Use an export password of at least ${MIN_EXPORT_PASSWORD} characters.`);
+  return password;
+};
+
+/** Seal an export in the SDK's shape: base64 AES-256-GCM payload, hex 32-byte salt. */
+const sealExport = async (password: string, label: string, body: string) => {
+  const salt = randomBytes(32);
+  return { encryptedPayload: await seal(await deriveKey(password, salt), body, label), salt: toHex(salt) };
+};
+
+const openExport = async (password: string, label: string, exported: { encryptedPayload: string; salt: string }) => {
+  try {
+    return await open(await deriveKey(password, fromHex(exported.salt)), exported.encryptedPayload, label);
+  } catch {
+    throw new Error('That password does not open this export, or the export was changed.');
+  }
+};
+
+const STATES_LABEL = 'midnight-private-state-export';
+const KEYS_LABEL = 'midnight-signing-key-export';
 
 /** Where values are kept: the unlocked vault in the browser, memory in tests. */
 export type PrivateStore = {
@@ -181,19 +214,14 @@ export const persistentPrivateStateProvider = <
     },
 
     async exportPrivateStates(options?: ExportPrivateStatesOptions): Promise<PrivateStateExport> {
-      void options;
+      const password = requirePassword(options?.password, 'private state');
       const address = requireContractAddress();
       const scope = await readScope(address);
-      return {
-        format: 'midnight-private-state-export',
-        encryptedPayload: encodePrivateState({
-          contractAddress: address,
-          states: Object.fromEntries(
-            Object.entries(scope).map(([id, value]) => [id, encodePrivateState(value)]),
-          ),
-        }),
-        salt: 'amana-persistent-private-state-provider',
-      };
+      const body = encodePrivateState({
+        contractAddress: address,
+        states: Object.fromEntries(Object.entries(scope).map(([id, value]) => [id, encodePrivateState(value)])),
+      });
+      return { format: 'midnight-private-state-export', ...(await sealExport(password, STATES_LABEL, body)) };
     },
 
     async importPrivateStates(
@@ -202,8 +230,9 @@ export const persistentPrivateStateProvider = <
     ): Promise<ImportPrivateStatesResult> {
       const address = requireContractAddress();
       const conflictStrategy = options?.conflictStrategy ?? 'error';
+      const password = requirePassword(options?.password, 'private state');
       const payload = decodePrivateState<{ states?: Record<string, string> }>(
-        exportData.encryptedPayload,
+        await openExport(password, STATES_LABEL, exportData),
       );
       const incoming = payload.states ?? {};
       const scope = await readScope(address);
@@ -234,12 +263,9 @@ export const persistentPrivateStateProvider = <
     },
 
     async exportSigningKeys(options?: ExportSigningKeysOptions): Promise<SigningKeyExport> {
-      void options;
-      return {
-        format: 'midnight-signing-key-export',
-        encryptedPayload: encodePrivateState({ keys: await readSigningKeys() }),
-        salt: 'amana-persistent-signing-key-provider',
-      };
+      const password = requirePassword(options?.password, 'signing keys');
+      const body = encodePrivateState({ keys: await readSigningKeys() });
+      return { format: 'midnight-signing-key-export', ...(await sealExport(password, KEYS_LABEL, body)) };
     },
 
     async importSigningKeys(
@@ -247,8 +273,9 @@ export const persistentPrivateStateProvider = <
       options?: ImportSigningKeysOptions,
     ): Promise<ImportSigningKeysResult> {
       const conflictStrategy = options?.conflictStrategy ?? 'error';
+      const password = requirePassword(options?.password, 'signing keys');
       const payload = decodePrivateState<{ keys?: Record<ContractAddress, SigningKey> }>(
-        exportData.encryptedPayload,
+        await openExport(password, KEYS_LABEL, exportData),
       );
       const incoming = payload.keys ?? {};
       const keys = await readSigningKeys();
