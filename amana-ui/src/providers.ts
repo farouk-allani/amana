@@ -27,7 +27,8 @@ import type { Logger } from 'pino';
 
 import type { AmanaCircuitKeys, AmanaProviders, PrivateStateId } from '../../api/src/common-types.js';
 import type { AmanaPrivateState } from '../../contract/src/index.js';
-import { persistentPrivateStateProvider } from './persistent-private-state-provider.js';
+import { persistentPrivateStateProvider, type PrivateStore } from './persistent-private-state-provider.js';
+import { withStageReporting } from './stage-reporting.js';
 
 const COMPATIBLE_CONNECTOR_API_VERSION = '4.x';
 
@@ -42,6 +43,9 @@ const findWallet = (): InitialAPI | undefined => {
       semver.satisfies((wallet as InitialAPI).apiVersion, COMPATIBLE_CONNECTOR_API_VERSION),
   );
 };
+
+/** Whether a wallet this app can talk to has injected itself yet. */
+export const hasCompatibleWallet = (): boolean => findWallet() !== undefined;
 
 export class WalletMissingError extends Error {
   constructor() {
@@ -82,6 +86,7 @@ export const connectToWallet = async (
  */
 export const initialiseProviders = async (
   networkId: string,
+  store: PrivateStore,
   logger?: Logger,
 ): Promise<AmanaProviders> => {
   const wallet = await connectToWallet(networkId, logger);
@@ -101,8 +106,10 @@ export const initialiseProviders = async (
     );
   }
 
-  return {
-    privateStateProvider: persistentPrivateStateProvider<PrivateStateId, AmanaPrivateState>(),
+  // Every transaction reports its stages to the progress panel as it goes.
+  return withStageReporting({
+    // The unlocked vault: private state is sealed before it reaches storage.
+    privateStateProvider: persistentPrivateStateProvider<PrivateStateId, AmanaPrivateState>(store),
     zkConfigProvider,
     proofProvider: httpClientProofProvider(config.proverServerUri, zkConfigProvider),
     publicDataProvider: indexerPublicDataProvider(config.indexerUri, config.indexerWsUri,
@@ -129,5 +136,5 @@ export const initialiseProviders = async (
         return txId as TransactionId;
       },
     },
-  };
+  });
 };

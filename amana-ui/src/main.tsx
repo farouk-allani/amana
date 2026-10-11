@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import './globals.js';
-import './styles.css';
+// Fonts are bundled rather than fetched from a font CDN: a privacy product
+// should not tell a third party who opened it.
+import '@fontsource-variable/archivo/wdth.css';
+import '@fontsource-variable/jetbrains-mono/index.css';
+import './styles/index.css';
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -25,8 +29,21 @@ const logger = pino.pino({
   level: (import.meta.env.VITE_LOGGING_LEVEL as string) ?? 'info',
 });
 
+// Development only: `?gallery` shows every shared component. The condition is
+// a compile-time constant, so production builds drop the import entirely.
+const Gallery =
+  import.meta.env.DEV && new URLSearchParams(window.location.search).has('gallery')
+    ? React.lazy(() => import('./dev/Gallery.jsx'))
+    : null;
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <App logger={logger} networkId={networkId} />
+    {Gallery ? (
+      <React.Suspense fallback={null}>
+        <Gallery />
+      </React.Suspense>
+    ) : (
+      <App logger={logger} networkId={networkId} />
+    )}
   </React.StrictMode>,
 );

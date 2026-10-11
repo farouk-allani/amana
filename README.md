@@ -12,7 +12,7 @@
 [![On-chain evidence](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml)
 ![Compact](https://img.shields.io/badge/Compact-0.23-d9a441)
 ![Circuits](https://img.shields.io/badge/circuits-10-4ea882)
-![Tests](https://img.shields.io/badge/tests-87%20passing-4ea882)
+![Tests](https://img.shields.io/badge/tests-127%20passing-4ea882)
 ![Network](https://img.shields.io/badge/Midnight-preview-8b5cf6)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
@@ -25,7 +25,7 @@
 **Hosted build:** [amana-rust.vercel.app](https://amana-rust.vercel.app/). It needs what any Midnight DApp needs on your side: the Lace Midnight Preview wallet on the preview network with a funded wallet, and a proof server running locally on `:6300` (see [Deploy to preview](#deploy-to-preview)). Then paste the registry address above and **Join registry** to act as a borrower or verifier, or deploy a registry of your own to drive all four roles.
 
 <p align="center">
-  <img src="docs/assets/amana-app-showcase.png" alt="Amana borrower and verifier application interfaces showing a private repayment proof" width="1100">
+  <img src="docs/assets/amana-app-showcase.png" alt="Amana: the borrower's repayment passport, the review before proving, and the lender's receipt" width="1100">
 </p>
 
 A borrower proves they cleared a repayment bar, such as *"at least 14 on-time repayments in the last 24 months"*, without revealing which institutions lent to them, how much they borrowed, their real repayment total, or how many records they used. The protocol creates no reusable public identifier for the borrower.
@@ -79,20 +79,32 @@ Selective disclosure is not a privacy feature bolted onto this product. It is th
 
 ## The application
 
-Four roles, one registry, every hash click-to-copy. The strip under the role switcher shows where you are in the five-step check protocol.
+A borrower's repayment passport, with the three institutions' consoles around it. Before any proof, the borrower sees exactly what the lender will learn beside what stays with them, and the lender's answer arrives as a receipt that states the bar and nothing more. Keys, hashes and leaf indexes sit behind "Technical details". Each transaction shows its real stages as the proof is built, approved in Lace, submitted and confirmed. Private data is encrypted in the browser under a passphrase, with encrypted backups.
 
 <table>
   <tr>
-    <td width="33%"><img src="docs/assets/app-registry.png" alt="Registry Operator view: admitted institutions, issuance counters, and the public-versus-private ledger split"></td>
-    <td width="33%"><img src="docs/assets/app-issuing.png" alt="Issuing Institution view: lender key, admitted status, and an attestation just issued"></td>
-    <td width="33%"><img src="docs/assets/app-borrower.png" alt="Borrower view: generating a per-lender pseudonym and accepting a credential"></td>
+    <td width="33%"><img src="docs/assets/app-borrower.png" alt="Borrower's repayment passport: 14 on-time repayments provable, from two live records shown as cards, one revoked record"></td>
+    <td width="33%"><img src="docs/assets/app-consent.png" alt="Review before proving: the lender's question, the records the proof will use, and what the lender learns beside what stays with the borrower"></td>
+    <td width="33%"><img src="docs/assets/app-verifier.png" alt="Verifier's result as a paper receipt: cleared, at least 14 on-time repayments between Nov 2024 and Oct 2026, and what it does not reveal"></td>
   </tr>
   <tr>
-    <td align="center"><sub><b>Registry Operator</b> · admits institutions, sees only counters and commitments</sub></td>
-    <td align="center"><sub><b>Issuing Institution</b> · issues a record; the chain receives one hash</sub></td>
-    <td align="center"><sub><b>Borrower</b> · a different pseudonym at every lender, credentials held locally</sub></td>
+    <td align="center"><sub><b>Borrower</b> · records as cards, and the total they can prove</sub></td>
+    <td align="center"><sub><b>Before proving</b> · what the lender learns, what stays with you</sub></td>
+    <td align="center"><sub><b>Verifying institution</b> · a receipt with the bar, not the margin</sub></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="docs/assets/app-proving.png" alt="A proof in progress, shown as five stages: preparing, building the zero-knowledge proof, confirming in Lace, submitting, waiting for confirmation"></td>
+    <td width="33%"><img src="docs/assets/app-issuing.png" alt="Issuing institution: the record form beside a preview of the card the borrower will hold, and what is published on chain"></td>
+    <td width="33%"><img src="docs/assets/app-registry.png" alt="Registry operator: counters, who operates the registry, and the admitted institutions"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Proving</b> · the real stages, not a spinner</sub></td>
+    <td align="center"><sub><b>Issuing institution</b> · the chain receives one fingerprint</sub></td>
+    <td align="center"><sub><b>Registry operator</b> · admits and withdraws institutions</sub></td>
   </tr>
 </table>
+
+<sub>Screens shown with the development sample registry: fictional institutions, nothing on chain. To look around without a wallet, run <code>npm run ui</code> and choose <i>Preview with sample data</i> (development builds only).</sub>
 
 ## What the verifier sees
 
@@ -186,7 +198,7 @@ Node 22.17+, Compact CLI 0.5.1, compiler 0.31.1, language 0.23. Install the CLI 
 npm ci
 npm run compact      # compiles ten circuits, generates proving/verifying keys
 npm run typecheck
-npm test             # 63 tests
+npm test             # 127 tests
 npm run build
 ```
 
@@ -227,18 +239,19 @@ The fastest honest path from a clean clone to seeing the privacy property hold:
 1. **Confirm the technical gate**, about two minutes. `npm ci && npm run compact` compiles ten circuits and writes proving keys under `contract/src/managed/`.
 2. **Check the live registry**, about ten seconds. `npm run verify:onchain` reads the deployed contract through the public preview indexer and checks it field by field: the authority, the admitted institutions, which institution issued each leaf, the counters, the recorded transactions and their blocks, plus invariants any honest registry must satisfy, such as one leaf per issued record and every answer matching the terms its verifier committed. [The run log](docs/evidence/preview-run.md) shows what each of those transactions did, and every refusal the circuit made.
 3. **Run the adversarial suite**, about fifteen seconds. `npm test`. The interesting cases are not the happy path: `rejects squatting a known verifier ID even with its nonce`, `prevents a credentialed observer intercepting a public check`, `does not let a recent final payment make lifetime counts recent`, and `has an identical public transcript for one or four records`.
-4. **Drive the four roles.** Use separate browser profiles for operator, lender A, lender B, borrower and verifier. Role tabs inside one profile share an identity, so switching tabs does not create a second lender. Deploy a registry, activate it, admit both lender keys, issue 8/8 and 6/7 with matching intervals, run the five-step protocol at threshold 14, and read the result.
+4. **Drive the four roles.** Use separate browser profiles for operator, lender A, lender B, borrower and verifier. Role tabs inside one profile share an identity, so switching tabs does not create a second lender. Deploy a registry, activate it, admit both lender keys, issue 8/8 and 6/7 with matching intervals, run the five-step protocol at threshold 14, and read the result. To see every screen first without a wallet, `npm run ui` and choose *Preview with sample data*; it is fictional and held in memory.
 5. **Break it.** Revoke lender A's leaf as lender A. The borrower's wallet marks the credential not live and a fresh check at 14 can no longer be answered. The circuit-level regression that bypasses the UI is `rejects a revoked witness but retains a historical accepted check`.
 
 A monthly period is `(UTC year − 1970) × 12 + UTC month index`. September 2026 is period 680, and a 24-month window ending there is 657 to 680.
 
 ## Quality evidence
 
-**87 passing tests.** 78 run against compiled circuits rather than mocks; 9 exercise the on-chain verifier against hand-built registry snapshots.
+**127 passing tests.** 78 run against compiled circuits rather than mocks; 9 exercise the on-chain verifier against hand-built registry snapshots; 40 cover the interface's encrypted storage and its handling of transactions.
 
 - **52 circuit tests** covering authority front-running and two-step handover, issuer withdrawal and voiding of its records, proofs in flight across issuance and revocation, issuer impersonation, inflated counts, reversed intervals, ID squatting, term rewriting, check interception by a credentialed outsider, lifetime-count laundering, double-counted leaves, overlapping same-lender snapshots, revocation, and wrong-index liveness.
 - **26 API integration tests** covering the full lifecycle, governance pre-checks that refuse before a transaction is paid for, wallet liveness on public revocation events, duplicate and malformed credential rejection, private-state cleanup after transaction failure, and operation serialization so concurrent issuance cannot overwrite pending witnesses.
 - **A privacy property written as a regression test.** `has an identical public transcript for one or four records satisfying the same check` executes the compiled circuit twice against the same ledger and check, once with one contributing credential and once with four, then asserts the complete public transcripts and public inputs are equal while the private transcripts differ.
+- **40 interface tests.** Encrypted storage: nothing private is stored in clear, a wrong passphrase opens nothing, a value moved between registries is refused, data left in clear by earlier versions is sealed, a backup restores in another browser under a different passphrase, and plaintext export is refused. Also the plain-language explanation of wallet, proof-server, network and circuit failures, and the reporting of each transaction stage.
 - **9 evidence-check tests** for `verify:onchain`. A matching registry passes, and later public activity counts as growth rather than failure. A withdrawn institution's records awaiting voiding are not a violation. A changed authority, broken leaf accounting, an answer with altered terms, a shrunken counter or a misplaced transaction each fail.
 
 Circuit tests execute generated Compact circuits against the local runtime. API tests simulate providers and finalization; they do not submit transactions or generate cryptographic proofs.
@@ -249,7 +262,7 @@ Stated plainly, because a privacy product that hides its own weaknesses is not o
 
 - **Issuer trust is the root.** Zero-knowledge proves a credential is authentic, bound to the holder and live. It cannot prove a real repayment happened. Registry admission and issuer audit remain required controls.
 - **Capacity.** Tree depth 10 gives 1,024 lifetime issuance positions and revocation does not free them. Four lenders per proof, 16-bit thresholds.
-- **Storage.** Identity keys and credentials sit unencrypted in browser localStorage, with no recovery ([AUD-02](docs/AUDIT.md#aud-02)). Encrypted storage, export and recovery are Wave 2 work.
+- **Storage.** Identity keys and records are encrypted in the browser under a passphrase, with encrypted backups ([AUD-02](docs/AUDIT.md#aud-02)). While unlocked they are readable by code running in the page, a forgotten passphrase cannot be reset, and recovery depends on keeping a backup file; there is no split-key or social recovery yet.
 - **Metadata.** Indexers see requests and IP addresses. Cryptographic unlinkability does not survive timing correlation, a small anonymity set, or an institution that already knows its customer through KYC.
 - **No trusted clock.** The verifier chooses the upper window bound; the chain asserts no date.
 - **Governance.** One authority key at a time, handed over in two steps but with no multi-party control. Withdrawing an institution voids its records one public transaction per leaf. No check expiry or per-verifier quota.
@@ -258,9 +271,9 @@ Full analysis in [docs/PRIVACY.md](docs/PRIVACY.md); every finding with its stat
 
 ## Roadmap
 
-**Wave 2, done so far.** Protocol version 3: the authority can withdraw an institution and void its records, and can hand the registry to a new key in two steps. Proofs in flight survive other institutions issuing. A published [self-audit](docs/AUDIT.md). A scripted run on preview with real proofs, including the first credit check answered on chain, and on-chain evidence re-checked daily in CI.
+**Wave 2, done so far.** Protocol version 3: the authority can withdraw an institution and void its records, and can hand the registry to a new key in two steps. Proofs in flight survive other institutions issuing. A published [self-audit](docs/AUDIT.md). A scripted run on preview with real proofs, including the first credit check answered on chain, and on-chain evidence re-checked daily in CI. Private data encrypted in the browser under a passphrase, with encrypted backups ([AUD-02](docs/AUDIT.md#aud-02)).
 
-**Wave 2, next.** Encrypted private storage with export and recovery, including a split-key or social-recovery path so a lost phone does not turn a borrower back into a stranger ([AUD-02](docs/AUDIT.md#aud-02)).
+**Wave 2, next.** A split-key or social-recovery path, so that a lost phone and a lost backup file do not turn a borrower back into a stranger.
 
 **Measured, not yet quantified.** Every derived value here (commitments, pseudonyms, nullifiers, response keys) lands in ledger state, so `persistentHash` is the correct primitive. It is the non-circuit-optimised one, though, and a single proof evaluates it around ten times. Proving time on consumer hardware needs a number, and it decides the next two items.
 

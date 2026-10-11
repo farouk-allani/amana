@@ -17,7 +17,7 @@
     "compact": "npm run compact --workspace=contract",
     "compact:check": "npm run compact:check --workspace=contract",
     "build": "npm run build --workspace=contract && npm run build --workspace=api && npm run build --workspace=amana-ui",
-    "test": "npm run test --workspace=contract && npm run test --workspace=api && npm run test:scripts",
+    "test": "npm run test --workspace=contract && npm run test --workspace=api && npm run test --workspace=amana-ui && npm run test:scripts",
     "test:scripts": "node --test scripts/onchain-checks.test.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "ui": "npm run dev --workspace=amana-ui",

@@ -1,0 +1,456 @@
+/* Amana — portable private credit history.
+   Copyright (C) 2026 the Amana authors.
+   SPDX-License-Identifier: Apache-2.0 */
+
+/* --- spinner ------------------------------------------------------------ */
+
+.spin {
+  display: inline-block;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  opacity: 0.85;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- buttons ------------------------------------------------------------ */
+
+.button {
+  --button-h: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: var(--button-h);
+  padding: 0 var(--s-5);
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-md);
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button svg {
+  flex: none;
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+
+.button:disabled {
+  opacity: 0.45;
+}
+
+.button[aria-busy='true'] {
+  opacity: 0.85;
+  cursor: progress;
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.button-sm {
+  --button-h: 34px;
+  padding: 0 var(--s-3);
+  font-size: var(--fs-sm);
+  gap: 6px;
+}
+
+.button-lg {
+  --button-h: 52px;
+  padding: 0 var(--s-6);
+  font-size: var(--fs-lg);
+}
+
+.button-block {
+  display: flex;
+  width: 100%;
+}
+
+.button-primary {
+  background: var(--gold);
+  color: var(--on-gold);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 8px 24px -10px rgba(217, 164, 65, 0.6);
+}
+
+.button-primary:hover:not(:disabled) {
+  background: var(--gold-strong);
+}
+
+/* A disabled primary reads as "not yet", not as a dimmed gold smear. */
+.button-primary:disabled:not([aria-busy='true']) {
+  opacity: 1;
+  background: var(--surface-3);
+  color: var(--text-3);
+  box-shadow: none;
+}
+
+.button-secondary {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: rgba(148, 163, 209, 0.38);
+}
+
+.button-ghost {
+  background: transparent;
+  color: var(--text-2);
+}
+
+.button-ghost:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.button-danger {
+  background: transparent;
+  border-color: var(--red-line);
+  color: var(--red-text);
+}
+
+.button-danger:hover:not(:disabled) {
+  background: var(--red-soft);
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-2);
+  transition: background-color var(--dur-1), color var(--dur-1);
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.icon-button:disabled {
+  opacity: 0.35;
+}
+
+/* --- copy --------------------------------------------------------------- */
+
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-height: 30px;
+  padding: 0 var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  transition: background-color var(--dur-1), color var(--dur-1), border-color var(--dur-1);
+}
+
+.copy-button:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.copy-secondary {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.copy-compact {
+  width: 30px;
+  padding: 0;
+  justify-content: center;
+}
+
+.copy-button.is-copied {
+  color: var(--green-text);
+  border-color: var(--green-line);
+}
+
+/* A value to hand to someone else. */
+.share-value {
+  border: 1px solid var(--gold-line);
+  background: linear-gradient(180deg, var(--gold-soft), transparent 140%), var(--surface-2);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4) var(--s-4);
+}
+
+.share-value-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-2);
+}
+
+.share-value-label {
+  color: var(--gold-text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.share-value-code {
+  display: block;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.share-value-hint {
+  margin-top: var(--s-2);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+/* --- fields ------------------------------------------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  color: var(--text-2);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.field-optional {
+  color: var(--text-3);
+  font-weight: 500;
+  font-size: var(--fs-xs);
+}
+
+.field-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+.field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--red-text);
+  line-height: 1.5;
+}
+
+.field-error svg {
+  margin-top: 2px;
+}
+
+.input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--ink-950);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--fs-md);
+  letter-spacing: 0;
+  transition: border-color var(--dur-1), box-shadow var(--dur-1), background-color var(--dur-1);
+}
+
+.input::placeholder {
+  color: var(--text-3);
+  opacity: 0.8;
+}
+
+.input:hover:not(:disabled) {
+  border-color: rgba(148, 163, 209, 0.38);
+}
+
+.input:focus,
+.input:focus-visible {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(217, 164, 65, 0.22);
+  border-radius: var(--r-md);
+}
+
+.field.has-error .input {
+  border-color: var(--red-line);
+}
+
+.input-mono {
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+
+.textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.select {
+  appearance: none;
+  padding-right: 40px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-2) 50%),
+    linear-gradient(135deg, var(--text-2) 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) 50%,
+    calc(100% - 15px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.select option {
+  background: var(--ink-850);
+  color: var(--text);
+}
+
+.number-input {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--ink-950);
+  transition: border-color var(--dur-1), box-shadow var(--dur-1);
+}
+
+.number-input:focus-within {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(217, 164, 65, 0.22);
+}
+
+.number-input .number-input-field {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  text-align: center;
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  padding: 0 var(--s-2);
+}
+
+.number-input .number-input-field:focus {
+  box-shadow: none;
+}
+
+.number-input-unit {
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  margin-right: var(--s-2);
+}
+
+.month-input {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: var(--s-2);
+}
+
+/* --- choice chips ------------------------------------------------------- */
+
+.chips {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.chips .field-label {
+  margin-bottom: 6px;
+}
+
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  margin: 0;
+  font-family: var(--sans);
+  letter-spacing: 0;
+  text-transform: none;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--dur-1), border-color var(--dur-1), color var(--dur-1);
+}
+
+.chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chip:hover {
+  color: var(--text);
+  border-color: rgba(148, 163, 209, 0.38);
+}
+
+.chip.is-selected {
+  background: var(--gold-soft);
+  border-color: var(--gold);
+  color: var(--gold-text);
+}
+
+.chip:has(input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}

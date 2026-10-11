@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * A private state provider backed by `localStorage`.
+ * A private state provider that persists in the browser.
  *
  * The reference examples keep private state in memory, which is fine for a
  * bulletin board and wrong for a credit wallet: a borrower who refreshes the
@@ -15,7 +15,9 @@
  * length of a browser session.
  *
  * Storage is per contract address, so joining a different registry does not
- * mix wallets.
+ * mix wallets. Every value goes through a `PrivateStore`; in the browser that
+ * is the unlocked vault, which seals it under the person's passphrase before
+ * it reaches storage (AUD-02).
  *
  * @module
  */
@@ -24,6 +26,7 @@ import type {
   ContractAddress,
   SigningKey,
 } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
+import { deriveKey, fromHex, open, randomBytes, seal, toHex } from './vault/crypto.js';
 import type {
   ExportPrivateStatesOptions,
   ExportSigningKeysOptions,
@@ -80,10 +83,49 @@ export const decodePrivateState = <T>(value: string): T => JSON.parse(value, rev
 const NAMESPACE = 'amana:private-state';
 const SIGNING_NAMESPACE = 'amana:signing-keys';
 
+/** The SDK's interface asks export passwords to be at least this long. */
+const MIN_EXPORT_PASSWORD = 16;
+
+/**
+ * Exports are always encrypted. The SDK lets a provider fall back to its
+ * storage password when none is given; Amana has no such password to fall
+ * back on, and will not hand out private state in clear, so it refuses.
+ */
+const requirePassword = (password: string | undefined, what: string): string => {
+  if (!password) throw new Error(`Amana does not export ${what} without a password; plaintext export is disabled.`);
+  if (password.length < MIN_EXPORT_PASSWORD)
+    throw new Error(`Use an export password of at least ${MIN_EXPORT_PASSWORD} characters.`);
+  return password;
+};
+
+/** Seal an export in the SDK's shape: base64 AES-256-GCM payload, hex 32-byte salt. */
+const sealExport = async (password: string, label: string, body: string) => {
+  const salt = randomBytes(32);
+  return { encryptedPayload: await seal(await deriveKey(password, salt), body, label), salt: toHex(salt) };
+};
+
+const openExport = async (password: string, label: string, exported: { encryptedPayload: string; salt: string }) => {
+  try {
+    return await open(await deriveKey(password, fromHex(exported.salt)), exported.encryptedPayload, label);
+  } catch {
+    throw new Error('That password does not open this export, or the export was changed.');
+  }
+};
+
+const STATES_LABEL = 'midnight-private-state-export';
+const KEYS_LABEL = 'midnight-signing-key-export';
+
+/** Where values are kept: the unlocked vault in the browser, memory in tests. */
+export type PrivateStore = {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
+  remove(key: string): Promise<void>;
+};
+
 export const persistentPrivateStateProvider = <
   PSI extends PrivateStateId,
   PS = unknown,
->(): PrivateStateProvider<PSI, PS> => {
+>(store: PrivateStore): PrivateStateProvider<PSI, PS> => {
   let contractAddress: ContractAddress | null = null;
 
   const requireContractAddress = (): ContractAddress => {
@@ -97,8 +139,8 @@ export const persistentPrivateStateProvider = <
 
   const stateKey = (address: ContractAddress): string => `${NAMESPACE}:${address}`;
 
-  const readScope = (address: ContractAddress): Record<string, unknown> => {
-    const raw = localStorage.getItem(stateKey(address));
+  const readScope = async (address: ContractAddress): Promise<Record<string, unknown>> => {
+    const raw = await store.get(stateKey(address));
     if (raw === null) return {};
     try {
       return decodePrivateState<Record<string, unknown>>(raw);
@@ -107,12 +149,11 @@ export const persistentPrivateStateProvider = <
     }
   };
 
-  const writeScope = (address: ContractAddress, scope: Record<string, unknown>): void => {
-    localStorage.setItem(stateKey(address), encodePrivateState(scope));
-  };
+  const writeScope = (address: ContractAddress, scope: Record<string, unknown>): Promise<void> =>
+    store.set(stateKey(address), encodePrivateState(scope));
 
-  const readSigningKeys = (): Record<ContractAddress, SigningKey> => {
-    const raw = localStorage.getItem(SIGNING_NAMESPACE);
+  const readSigningKeys = async (): Promise<Record<ContractAddress, SigningKey>> => {
+    const raw = await store.get(SIGNING_NAMESPACE);
     if (raw === null) return {};
     try {
       return decodePrivateState<Record<ContractAddress, SigningKey>>(raw);
@@ -121,91 +162,80 @@ export const persistentPrivateStateProvider = <
     }
   };
 
-  const writeSigningKeys = (keys: Record<ContractAddress, SigningKey>): void => {
-    localStorage.setItem(SIGNING_NAMESPACE, encodePrivateState(keys));
-  };
+  const writeSigningKeys = (keys: Record<ContractAddress, SigningKey>): Promise<void> =>
+    store.set(SIGNING_NAMESPACE, encodePrivateState(keys));
 
   return {
     setContractAddress(address: ContractAddress): void {
       contractAddress = address;
     },
 
-    set(key: PSI, state: PS): Promise<void> {
+    async set(key: PSI, state: PS): Promise<void> {
       const address = requireContractAddress();
-      const scope = readScope(address);
+      const scope = await readScope(address);
       scope[key] = state;
-      writeScope(address, scope);
-      return Promise.resolve();
+      await writeScope(address, scope);
     },
 
-    get(key: PSI): Promise<PS | null> {
-      const scope = readScope(requireContractAddress());
-      return Promise.resolve((scope[key] as PS | undefined) ?? null);
+    async get(key: PSI): Promise<PS | null> {
+      const scope = await readScope(requireContractAddress());
+      return (scope[key] as PS | undefined) ?? null;
     },
 
-    remove(key: PSI): Promise<void> {
+    async remove(key: PSI): Promise<void> {
       const address = requireContractAddress();
-      const scope = readScope(address);
+      const scope = await readScope(address);
       delete scope[key];
-      writeScope(address, scope);
-      return Promise.resolve();
+      await writeScope(address, scope);
     },
 
     clear(): Promise<void> {
-      localStorage.removeItem(stateKey(requireContractAddress()));
-      return Promise.resolve();
+      return store.remove(stateKey(requireContractAddress()));
     },
 
-    setSigningKey(address: ContractAddress, signingKey: SigningKey): Promise<void> {
-      const keys = readSigningKeys();
+    async setSigningKey(address: ContractAddress, signingKey: SigningKey): Promise<void> {
+      const keys = await readSigningKeys();
       keys[address] = signingKey;
-      writeSigningKeys(keys);
-      return Promise.resolve();
+      await writeSigningKeys(keys);
     },
 
-    getSigningKey(address: ContractAddress): Promise<SigningKey | null> {
-      return Promise.resolve(readSigningKeys()[address] ?? null);
+    async getSigningKey(address: ContractAddress): Promise<SigningKey | null> {
+      return (await readSigningKeys())[address] ?? null;
     },
 
-    removeSigningKey(address: ContractAddress): Promise<void> {
-      const keys = readSigningKeys();
+    async removeSigningKey(address: ContractAddress): Promise<void> {
+      const keys = await readSigningKeys();
       delete keys[address];
-      writeSigningKeys(keys);
-      return Promise.resolve();
+      await writeSigningKeys(keys);
     },
 
     clearSigningKeys(): Promise<void> {
-      localStorage.removeItem(SIGNING_NAMESPACE);
-      return Promise.resolve();
+      return store.remove(SIGNING_NAMESPACE);
     },
 
-    exportPrivateStates(options?: ExportPrivateStatesOptions): Promise<PrivateStateExport> {
-      void options;
+    async exportPrivateStates(options?: ExportPrivateStatesOptions): Promise<PrivateStateExport> {
+      const password = requirePassword(options?.password, 'private state');
       const address = requireContractAddress();
-      const scope = readScope(address);
-      return Promise.resolve({
-        format: 'midnight-private-state-export',
-        encryptedPayload: encodePrivateState({
-          contractAddress: address,
-          states: Object.fromEntries(
-            Object.entries(scope).map(([id, value]) => [id, encodePrivateState(value)]),
-          ),
-        }),
-        salt: 'amana-persistent-private-state-provider',
+      const scope = await readScope(address);
+      const body = encodePrivateState({
+        contractAddress: address,
+        states: Object.fromEntries(Object.entries(scope).map(([id, value]) => [id, encodePrivateState(value)])),
       });
+      return { format: 'midnight-private-state-export', ...(await sealExport(password, STATES_LABEL, body)) };
     },
 
-    importPrivateStates(
+    async importPrivateStates(
       exportData: PrivateStateExport,
       options?: ImportPrivateStatesOptions,
     ): Promise<ImportPrivateStatesResult> {
       const address = requireContractAddress();
       const conflictStrategy = options?.conflictStrategy ?? 'error';
+      const password = requirePassword(options?.password, 'private state');
       const payload = decodePrivateState<{ states?: Record<string, string> }>(
-        exportData.encryptedPayload,
+        await openExport(password, STATES_LABEL, exportData),
       );
       const incoming = payload.states ?? {};
-      const scope = readScope(address);
+      const scope = await readScope(address);
 
       let imported = 0;
       let skipped = 0;
@@ -219,7 +249,7 @@ export const persistentPrivateStateProvider = <
             continue;
           }
           if (conflictStrategy === 'error') {
-            return Promise.reject(new Error(`Amana: private state conflict for '${stateId}'`));
+            throw new Error(`Amana: private state conflict for '${stateId}'`);
           }
           overwritten += 1;
         } else {
@@ -228,29 +258,27 @@ export const persistentPrivateStateProvider = <
         scope[stateId] = decodePrivateState(serialized);
       }
 
-      writeScope(address, scope);
-      return Promise.resolve({ imported, skipped, overwritten });
+      await writeScope(address, scope);
+      return { imported, skipped, overwritten };
     },
 
-    exportSigningKeys(options?: ExportSigningKeysOptions): Promise<SigningKeyExport> {
-      void options;
-      return Promise.resolve({
-        format: 'midnight-signing-key-export',
-        encryptedPayload: encodePrivateState({ keys: readSigningKeys() }),
-        salt: 'amana-persistent-signing-key-provider',
-      });
+    async exportSigningKeys(options?: ExportSigningKeysOptions): Promise<SigningKeyExport> {
+      const password = requirePassword(options?.password, 'signing keys');
+      const body = encodePrivateState({ keys: await readSigningKeys() });
+      return { format: 'midnight-signing-key-export', ...(await sealExport(password, KEYS_LABEL, body)) };
     },
 
-    importSigningKeys(
+    async importSigningKeys(
       exportData: SigningKeyExport,
       options?: ImportSigningKeysOptions,
     ): Promise<ImportSigningKeysResult> {
       const conflictStrategy = options?.conflictStrategy ?? 'error';
+      const password = requirePassword(options?.password, 'signing keys');
       const payload = decodePrivateState<{ keys?: Record<ContractAddress, SigningKey> }>(
-        exportData.encryptedPayload,
+        await openExport(password, KEYS_LABEL, exportData),
       );
       const incoming = payload.keys ?? {};
-      const keys = readSigningKeys();
+      const keys = await readSigningKeys();
 
       let imported = 0;
       let skipped = 0;
@@ -264,7 +292,7 @@ export const persistentPrivateStateProvider = <
             continue;
           }
           if (conflictStrategy === 'error') {
-            return Promise.reject(new Error(`Amana: signing key conflict for '${address}'`));
+            throw new Error(`Amana: signing key conflict for '${address}'`);
           }
           overwritten += 1;
         } else {
@@ -273,8 +301,8 @@ export const persistentPrivateStateProvider = <
         keys[address] = signingKey;
       }
 
-      writeSigningKeys(keys);
-      return Promise.resolve({ imported, skipped, overwritten });
+      await writeSigningKeys(keys);
+      return { imported, skipped, overwritten };
     },
   };
 };

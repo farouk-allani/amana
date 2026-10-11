@@ -1,0 +1,150 @@
+/* Amana — portable private credit history.
+   Copyright (C) 2026 the Amana authors.
+   SPDX-License-Identifier: Apache-2.0 */
+
+/* Design tokens.
+
+   The brand is navy and gold: a night palette, but a warm one, because credit
+   is a human business and أمانة is a trust placed in someone's hands. Gold is
+   the only accent. Green means live or cleared, red means revoked, failed or
+   destructive, and neither is used for decoration, so each keeps its meaning.
+
+   Every text colour below meets WCAG AA (4.5:1) on every surface it is used
+   on; the ratios are noted where they are closest to the line. */
+
+:root {
+  color-scheme: dark;
+
+  /* --- ink: the canvas and its surfaces ------------------------------- */
+  --ink-950: #070a12;
+  --ink-900: #0b0f1a; /* canvas */
+  --ink-850: #111727; /* surface 1: cards */
+  --ink-800: #171f33; /* surface 2: nested panels, inputs */
+  --ink-700: #1e2741; /* surface 3: hover */
+  --ink-600: #2a3454;
+  --ink-500: #3d4a72;
+
+  --surface-0: var(--ink-900);
+  --surface-1: var(--ink-850);
+  --surface-2: var(--ink-800);
+  --surface-3: var(--ink-700);
+
+  --line: rgba(148, 163, 209, 0.13);
+  --line-strong: rgba(148, 163, 209, 0.24);
+
+  /* --- text ----------------------------------------------------------- */
+  --text: #eef1f8;
+  --text-2: #b3bcd6; /* 7.8:1 on surface 3 */
+  --text-3: #8d98ba; /* 5.2:1 on surface 3, the lowest pairing */
+
+  /* --- gold: the one accent ------------------------------------------- */
+  --gold: #d9a441;
+  --gold-strong: #f0bc5c;
+  --gold-text: #e8b65a;
+  --gold-soft: rgba(217, 164, 65, 0.12);
+  --gold-line: rgba(217, 164, 65, 0.38);
+  --on-gold: #0b0f1a; /* 8.5:1 on gold */
+
+  /* --- status --------------------------------------------------------- */
+  --green: #4ea882;
+  --green-text: #62c39a;
+  --green-soft: rgba(78, 168, 130, 0.12);
+  --green-line: rgba(78, 168, 130, 0.38);
+
+  --red: #d9645f;
+  --red-text: #ef8a84;
+  --red-soft: rgba(217, 100, 95, 0.12);
+  --red-line: rgba(217, 100, 95, 0.4);
+
+  --blue-text: #8fb2ff;
+  --blue-soft: rgba(110, 145, 230, 0.12);
+  --blue-line: rgba(110, 145, 230, 0.36);
+
+  /* --- paper: the one light surface, for receipts ---------------------- */
+  --paper: #f6f1e6;
+  --paper-2: #ece4d3;
+  --paper-line: #ddd2bc;
+  --paper-ink: #151a2b; /* 15.4:1 */
+  --paper-muted: #5a6072; /* 5.6:1 */
+  --paper-green: #1f7a55; /* 4.7:1 */
+  --paper-gold: #8a5f12; /* 5.0:1 */
+
+  /* --- type ----------------------------------------------------------- */
+  --sans: 'Archivo Variable', 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    sans-serif;
+  --mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'SF Mono', 'Cascadia Mono', Consolas,
+    monospace;
+
+  /* Archivo has a width axis. Display type is set wide, like the lettering on
+     a passport cover; running text stays at the normal width. */
+  --stretch-display: 112%;
+  --stretch-wide: 118%;
+
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13.5px;
+  --fs-md: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+  --fs-3xl: 34px;
+  --fs-4xl: 46px;
+  --fs-5xl: 64px;
+
+  --lh-tight: 1.1;
+  --lh-snug: 1.3;
+  --lh-body: 1.55;
+
+  --track-caps: 0.12em;
+
+  /* --- space (4 px grid) ---------------------------------------------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 28px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* --- shape ---------------------------------------------------------- */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+
+  /* --- depth ---------------------------------------------------------- */
+  --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+  --shadow-3: 0 30px 80px -24px rgba(0, 0, 0, 0.8);
+
+  /* --- focus ---------------------------------------------------------- */
+  --focus: var(--gold-strong);
+  --focus-ring: 0 0 0 2px var(--ink-900), 0 0 0 4px var(--focus);
+
+  /* --- motion --------------------------------------------------------- */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 360ms;
+
+  /* --- layout --------------------------------------------------------- */
+  --sidebar-w: 268px;
+  --content-max: 1080px;
+  --topbar-h: 64px;
+  --tabbar-h: 68px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+  }
+}

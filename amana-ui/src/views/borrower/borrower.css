@@ -1,0 +1,411 @@
+/* Amana — portable private credit history.
+   Copyright (C) 2026 the Amana authors.
+   SPDX-License-Identifier: Apache-2.0 */
+
+/* Shared by every role screen: vertical rhythm and section headings. */
+.borrower,
+.role-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+}
+
+.borrower > .page-header,
+.role-screen > .page-header {
+  margin-bottom: 0;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.section-head h2 {
+  font-size: var(--fs-xl);
+  font-weight: 750;
+}
+
+.section-count {
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+}
+
+/* Dialog content helpers. */
+.dialog-stack {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.dialog-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.dialog-inline-note {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+/* --- the passport hero -------------------------------------------------- */
+
+.passport {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'main stats'
+    'private private';
+  gap: var(--s-6) var(--s-8);
+  padding: var(--s-8);
+  overflow: hidden;
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-xl);
+  background:
+    radial-gradient(90% 140% at 0% 0%, rgba(217, 164, 65, 0.16), transparent 55%),
+    linear-gradient(135deg, #18213b 0%, #111829 55%, #0d1322 100%);
+  box-shadow: var(--shadow-2);
+}
+
+.passport::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: repeating-radial-gradient(circle at 100% 0%, rgba(217, 164, 65, 0.06) 0 1px, transparent 1px 12px);
+  mask-image: linear-gradient(90deg, transparent 30%, #000);
+}
+
+.passport-art {
+  position: absolute;
+  z-index: -1;
+  right: -40px;
+  bottom: -70px;
+  color: var(--gold);
+  opacity: 0.06;
+}
+
+.passport-main {
+  grid-area: main;
+  min-width: 0;
+}
+
+.passport-label {
+  color: var(--gold-text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-stretch: var(--stretch-wide);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.passport-figure {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-3) var(--s-4);
+  margin-top: var(--s-2);
+}
+
+.passport-figure .num {
+  font-size: clamp(64px, 9vw, 104px);
+  font-stretch: var(--stretch-display);
+  font-weight: 850;
+  letter-spacing: -0.05em;
+  line-height: 0.88;
+  background: linear-gradient(180deg, #fff6e2 0%, var(--gold-strong) 60%, var(--gold) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.passport-unit {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.passport-sub {
+  margin-top: var(--s-3);
+  max-width: 58ch;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+}
+
+.passport-stats {
+  grid-area: stats;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(84px, auto));
+  align-self: end;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.passport-stats > div {
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: rgba(11, 15, 26, 0.45);
+}
+
+.passport-stats dt {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.passport-stats dd {
+  margin: 2px 0 0;
+  font-size: var(--fs-2xl);
+  font-weight: 800;
+  font-stretch: var(--stretch-display);
+}
+
+.passport-private {
+  grid-area: private;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.passport-private svg {
+  flex: none;
+  color: var(--gold-text);
+}
+
+@media (max-width: 860px) {
+  .passport {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'main'
+      'stats'
+      'private';
+    padding: var(--s-6) var(--s-5);
+  }
+
+  .passport-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .passport-private {
+    align-items: flex-start;
+  }
+
+  .passport-private svg {
+    margin-top: 3px;
+  }
+}
+
+/* --- records ------------------------------------------------------------ */
+
+.records-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: var(--s-5);
+  align-items: start;
+}
+
+/* --- answering a check -------------------------------------------------- */
+
+.answer {
+  display: grid;
+  gap: var(--s-6);
+}
+
+.answer-body {
+  display: grid;
+  gap: var(--s-5);
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--line);
+}
+
+.answer-enter,
+.answer-send,
+.answer-review,
+.answer-done {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.answer-enter {
+  max-width: 640px;
+}
+
+.answer-copy h3 {
+  font-size: var(--fs-lg);
+}
+
+.answer-copy p {
+  margin-top: var(--s-2);
+  max-width: 62ch;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+.answer-actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.answer-send {
+  max-width: 720px;
+}
+
+.answer-send > .button {
+  justify-self: start;
+}
+
+.answer-waiting {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-3) var(--s-4);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.answer-waiting > span:not(.spin) {
+  flex: 1;
+  min-width: 220px;
+}
+
+.answer-waiting .spin {
+  color: var(--gold-text);
+}
+
+/* The question, stated as the lender asked it. */
+.ask {
+  padding: var(--s-5) var(--s-6);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  background: var(--surface-2);
+}
+
+.ask-label {
+  color: var(--gold-text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-stretch: var(--stretch-wide);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.ask-question {
+  margin-top: var(--s-2);
+  font-size: clamp(19px, 2.2vw, 24px);
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.ask-question b {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.eligibility {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--green-line);
+  border-radius: var(--r-md);
+  background: var(--green-soft);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+}
+
+.eligibility svg {
+  flex: none;
+  color: var(--green-text);
+}
+
+.eligibility.is-no {
+  border-color: var(--red-line);
+  background: var(--red-soft);
+}
+
+.eligibility.is-no svg {
+  color: var(--red-text);
+}
+
+.answer-section h3 {
+  margin-bottom: var(--s-3);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.answer-section h3 span {
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+.used-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: var(--s-3);
+}
+
+.consent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4) var(--s-6);
+  flex-wrap: wrap;
+  padding: var(--s-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+
+.consent p {
+  flex: 1 1 320px;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+}
+
+.consent-actions {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.answer-receipt {
+  display: flex;
+  justify-content: center;
+  padding: var(--s-6) var(--s-4) var(--s-8);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(60% 70% at 50% 40%, rgba(217, 164, 65, 0.1), transparent 70%),
+    var(--ink-950);
+}
+
+.answer-done > .button {
+  justify-self: start;
+}
+
+@media (max-width: 560px) {
+  .consent-actions {
+    width: 100%;
+    flex-direction: column-reverse;
+  }
+
+  .consent-actions .button {
+    width: 100%;
+  }
+}

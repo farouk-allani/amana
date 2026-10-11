@@ -1,0 +1,220 @@
+/* Amana — portable private credit history.
+   Copyright (C) 2026 the Amana authors.
+   SPDX-License-Identifier: Apache-2.0 */
+
+/* --- institution status ------------------------------------------------- */
+
+.institution {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-4) var(--s-5);
+  padding: var(--s-5) var(--s-6);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+}
+
+.institution.is-admitted {
+  border-color: var(--green-line);
+  background:
+    radial-gradient(80% 140% at 0% 50%, rgba(78, 168, 130, 0.08), transparent 60%),
+    var(--surface-1);
+}
+
+.institution-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+.institution.is-admitted .institution-icon {
+  background: var(--green-soft);
+  color: var(--green-text);
+}
+
+.institution-main h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  font-size: var(--fs-lg);
+}
+
+.institution-main p {
+  margin-top: var(--s-1);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.institution-key {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.institution-key-label {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.institution-key code {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.institution-share {
+  grid-column: 1 / -1;
+}
+
+/* --- issue form --------------------------------------------------------- */
+
+.issue {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+  gap: var(--s-8);
+  align-items: start;
+}
+
+.issue-form {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.issue-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+}
+
+.issue-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+.issue-actions p {
+  flex: 1 1 220px;
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.issue-preview {
+  position: sticky;
+  top: calc(var(--topbar-h) + var(--s-5));
+  display: grid;
+  gap: var(--s-4);
+}
+
+.issue-preview-label {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  font-stretch: var(--stretch-wide);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.issue-preview .privacy-split {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* --- handover ----------------------------------------------------------- */
+
+.handover {
+  display: grid;
+  gap: var(--s-4);
+  max-width: 760px;
+}
+
+.handover-actions {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.handover-note,
+.list-note {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.list-note {
+  margin-top: var(--s-3);
+}
+
+/* --- issued records ----------------------------------------------------- */
+
+.leaf-list {
+  display: grid;
+  gap: var(--s-2);
+  list-style: none;
+}
+
+.leaf-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+}
+
+.leaf-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.leaf-title {
+  font-weight: 650;
+}
+
+.leaf-meta {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+@media (max-width: 900px) {
+  .issue {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .issue-preview {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .institution {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: var(--s-4);
+  }
+
+  .institution-key {
+    grid-column: 1 / -1;
+  }
+
+  .issue-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .leaf-list li {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .leaf-list li .pill {
+    display: none;
+  }
+
+  .leaf-meta {
+    display: none;
+  }
+}
