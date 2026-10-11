@@ -343,13 +343,13 @@
   color: var(--red-text);
 }
 
-.answer-section h4 {
+.answer-section h3 {
   margin-bottom: var(--s-3);
   font-size: var(--fs-sm);
   font-weight: 700;
 }
 
-.answer-section h4 span {
+.answer-section h3 span {
   color: var(--text-3);
   font-weight: 500;
 }

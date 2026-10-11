@@ -158,6 +158,7 @@ export const AddRecordDialog: React.FC<{
             accept="application/json,.json,.txt"
             className="visually-hidden"
             tabIndex={-1}
+            aria-label="Record file"
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void f.text().then(setText);

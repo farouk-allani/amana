@@ -253,9 +253,9 @@ export const AnswerCheck: React.FC<{ api: AmanaClient; state: AmanaDerivedState 
 
                 {eligible && (
                   <section className="answer-section" aria-labelledby="used-title">
-                    <h4 id="used-title">
+                    <h3 id="used-title">
                       Records this proof will use <span>· only you see this list</span>
-                    </h4>
+                    </h3>
                     <div className="used-grid">
                       {used.map((u) => (
                         <CredentialCard

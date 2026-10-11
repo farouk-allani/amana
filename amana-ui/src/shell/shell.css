@@ -339,6 +339,17 @@
   }
 }
 
+/* Narrower than a common phone: the address gives way, the copy stays. */
+@media (max-width: 370px) {
+  .registry-chip {
+    padding: 0 2px;
+  }
+
+  .registry-chip-value {
+    display: none;
+  }
+}
+
 /* --- connect ------------------------------------------------------------ */
 
 .connect {

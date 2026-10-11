@@ -255,7 +255,7 @@ export const IssuerView: React.FC<{ api: AmanaClient; state: AmanaDerivedState }
               )}
             </form>
 
-            <aside className="issue-preview" aria-label="Preview">
+            <section className="issue-preview" aria-label="Preview of the record">
               <p className="issue-preview-label">What the borrower will hold</p>
               <CredentialCard
                 institution={label}
@@ -279,7 +279,7 @@ export const IssuerView: React.FC<{ api: AmanaClient; state: AmanaDerivedState }
                   { label: 'Your institution’s name' },
                 ]}
               />
-            </aside>
+            </section>
           </div>
         )}
       </Panel>
