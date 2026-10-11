@@ -35,6 +35,7 @@ import type {
 import { utils } from '../../../api/src/index.js';
 import { provableTotal, selectAttestations } from '../../../contract/src/witnesses.js';
 import type { AmanaClient } from '../client.js';
+import { ProofServerError } from '../stage-reporting.js';
 import { reportStage, type TxStage } from '../transactions.js';
 
 /** A made-up but stable 32-byte value, as hex. */
@@ -80,13 +81,14 @@ const simulate = async (kind: 'proof' | 'transaction'): Promise<void> => {
     reportStage(stage);
     await sleep(total * share);
     if (failAt === stage) {
-      throw new Error(
-        stage === 'prove'
-          ? 'Failed Proof Server response: url="http://localhost:6300/prove", code="502", status="Bad Gateway" (proof server)'
-          : stage === 'approve'
-            ? 'User rejected the transaction'
-            : 'Indexer websocket closed before the transaction was seen',
-      );
+      // The same errors the real provider set produces at each stage.
+      throw stage === 'prove'
+        ? new ProofServerError(
+            new Error('Failed Proof Server response: url="http://localhost:6300/prove", code="502", status="Bad Gateway"'),
+          )
+        : stage === 'approve'
+          ? Object.assign(new Error('The user rejected the request'), { type: 'DAppConnectorAPIError', code: 'Rejected' })
+          : new Error('Indexer websocket closed before the transaction was seen');
     }
   }
 };

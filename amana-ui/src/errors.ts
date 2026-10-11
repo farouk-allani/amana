@@ -70,10 +70,15 @@ const RULES: readonly Rule[] = [
     body: 'In Lace, open Settings, then Midnight, and choose the local proof server (http://localhost:6300).',
   },
   {
-    // providers.ts tags every proving failure with "proof server".
-    test: /proof server|:6300/i,
+    // stage-reporting.ts tags every proving failure with "Proof server".
+    test: /proof server.*(failed to fetch|networkerror|load failed|econnrefused|connection refused)/i,
     title: "Can't reach the proof server",
     body: 'Start the proof server on this computer (port 6300) and keep it running, then try again. Nothing was sent.',
+  },
+  {
+    test: /proof server|:6300/i,
+    title: 'The proof server could not build the proof',
+    body: 'Check it is running the release for this network and has finished starting, then try again. Nothing was sent.',
   },
   {
     test: /user rejected|rejected by user|user denied|user declined|cancel+ed by user/i,
@@ -132,8 +137,13 @@ export const explainError = (e: unknown): Explained => {
     };
   }
 
-  // A transaction that reached the chain and failed there.
-  if (e instanceof Error && /TxFailedError/.test(e.name || e.constructor?.name || '')) {
+  // A transaction that reached the chain and failed there. The SDK's
+  // TxFailedError carries the finalized data; class names do not survive
+  // minification, so that field is the reliable sign.
+  if (
+    e instanceof Error &&
+    ('finalizedTxData' in e || /TxFailedError/.test(`${e.name} ${e.constructor?.name ?? ''}`))
+  ) {
     return {
       title: 'The network rejected the transaction',
       body: 'It was submitted but not applied, so nothing changed. Refresh and try again.',

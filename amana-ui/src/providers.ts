@@ -28,6 +28,7 @@ import type { Logger } from 'pino';
 import type { AmanaCircuitKeys, AmanaProviders, PrivateStateId } from '../../api/src/common-types.js';
 import type { AmanaPrivateState } from '../../contract/src/index.js';
 import { persistentPrivateStateProvider } from './persistent-private-state-provider.js';
+import { withStageReporting } from './stage-reporting.js';
 
 const COMPATIBLE_CONNECTOR_API_VERSION = '4.x';
 
@@ -104,7 +105,8 @@ export const initialiseProviders = async (
     );
   }
 
-  return {
+  // Every transaction reports its stages to the progress panel as it goes.
+  return withStageReporting({
     privateStateProvider: persistentPrivateStateProvider<PrivateStateId, AmanaPrivateState>(),
     zkConfigProvider,
     proofProvider: httpClientProofProvider(config.proverServerUri, zkConfigProvider),
@@ -132,5 +134,5 @@ export const initialiseProviders = async (
         return txId as TransactionId;
       },
     },
-  };
+  });
 };
