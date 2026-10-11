@@ -1,12 +1,13 @@
 // Copyright (C) 2026 the Amana authors.
 // SPDX-License-Identifier: Apache-2.0
 import React, { useRef, useState } from 'react';
-import type { AmanaAPI, AmanaDerivedState, CheckOutcome } from '../../../api/src/index.js';
+import type { AmanaDerivedState, CheckOutcome } from '../../../api/src/index.js';
+import type { AmanaClient } from '../client.js';
 import { utils } from '../../../api/src/index.js';
 import { provableTotal } from '../../../contract/src/witnesses.js';
 import { ActionButton, Badge, Card, Field, Hash, Notice, Stat } from '../ui.jsx';
 
-export const BorrowerView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> = ({ api, state }) => {
+export const BorrowerView: React.FC<{ api: AmanaClient; state: AmanaDerivedState }> = ({ api, state }) => {
   const [lenderKey, setLenderKey] = useState('');
   const [pseudonym, setPseudonym] = useState('');
   const [credential, setCredential] = useState('');

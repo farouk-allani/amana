@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React, { useState } from 'react';
-import type { AmanaAPI, AmanaDerivedState } from '../../../api/src/index.js';
+import type { AmanaDerivedState } from '../../../api/src/index.js';
+import type { AmanaClient } from '../client.js';
 import { utils } from '../../../api/src/index.js';
 import { ActionButton, Badge, Card, Field, Hash, Notice, Stat } from '../ui.jsx';
 
-export const RegistryView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> = ({
+export const RegistryView: React.FC<{ api: AmanaClient; state: AmanaDerivedState }> = ({
   api,
   state,
 }) => {

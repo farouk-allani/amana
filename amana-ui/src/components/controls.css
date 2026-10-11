@@ -97,6 +97,14 @@
   background: var(--gold-strong);
 }
 
+/* A disabled primary reads as "not yet", not as a dimmed gold smear. */
+.button-primary:disabled:not([aria-busy='true']) {
+  opacity: 1;
+  background: var(--surface-3);
+  color: var(--text-3);
+  box-shadow: none;
+}
+
 .button-secondary {
   background: var(--surface-2);
   border-color: var(--line-strong);

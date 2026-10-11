@@ -43,6 +43,9 @@ const findWallet = (): InitialAPI | undefined => {
   );
 };
 
+/** Whether a wallet this app can talk to has injected itself yet. */
+export const hasCompatibleWallet = (): boolean => findWallet() !== undefined;
+
 export class WalletMissingError extends Error {
   constructor() {
     super('No compatible Midnight Lace wallet was found. Is the extension installed and enabled?');

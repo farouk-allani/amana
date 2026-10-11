@@ -1,12 +1,13 @@
 // Copyright (C) 2026 the Amana authors.
 // SPDX-License-Identifier: Apache-2.0
 import React, { useRef, useState } from 'react';
-import type { AmanaAPI, AmanaDerivedState, CheckDraft, CheckOutcome } from '../../../api/src/index.js';
+import type { AmanaDerivedState, CheckDraft, CheckOutcome } from '../../../api/src/index.js';
+import type { AmanaClient } from '../client.js';
 import { utils } from '../../../api/src/index.js';
 import { ActionButton, Card, Field, Hash, Notice } from '../ui.jsx';
 
 type SavedDraft = { draft: CheckDraft; minOnTime: string; minPeriod: string; maxPeriod: string };
-export const VerifierView: React.FC<{ api: AmanaAPI; state: AmanaDerivedState }> = ({ api }) => {
+export const VerifierView: React.FC<{ api: AmanaClient; state: AmanaDerivedState }> = ({ api }) => {
   // Public draft only. Retain it when role tabs unmount this view.
   const storageKey = 'amana:check-draft:v2:' + api.deployedContractAddress;
   const [saved, setSaved] = useState<SavedDraft | null>(() => {
