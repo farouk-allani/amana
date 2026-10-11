@@ -126,8 +126,10 @@ export const CredentialCard: React.FC<{
   /** Highlighted as one of the records a proof will use. */
   selected?: boolean;
   size?: 'full' | 'mini';
+  /** False for a preview of a card someone else will hold. */
+  held?: boolean;
   children?: React.ReactNode;
-}> = ({ institution, onTime, total, from, to, live, selected = false, size = 'full', children }) => {
+}> = ({ institution, onTime, total, from, to, live, selected = false, size = 'full', held = true, children }) => {
   const ratio = total === 0n ? 0 : Number((onTime * 1000n) / total) / 10;
   return (
     <article
@@ -161,9 +163,11 @@ export const CredentialCard: React.FC<{
           <span className="credential-period num">
             {fmtPeriod(from)} – {fmtPeriod(to)}
           </span>
-          <span className="credential-held">
-            <LockKeyhole size={12} aria-hidden /> Held on this device
-          </span>
+          {held && (
+            <span className="credential-held">
+              <LockKeyhole size={12} aria-hidden /> Held on this device
+            </span>
+          )}
         </footer>
         {!live && (
           <p className="credential-revoked-note">

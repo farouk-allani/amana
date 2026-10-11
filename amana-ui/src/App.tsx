@@ -13,7 +13,7 @@ import { Spinner } from './components/index.js';
 import { Connect } from './shell/Connect.jsx';
 import { isRole, Shell, type Role } from './shell/Shell.jsx';
 import { RegistryView } from './views/Registry.jsx';
-import { LenderView } from './views/Lender.jsx';
+import { IssuerView } from './views/issuer/IssuerView.jsx';
 import { BorrowerView } from './views/borrower/BorrowerView.jsx';
 import { VerifierView } from './views/verifier/VerifierView.jsx';
 
@@ -148,7 +148,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
       case 'verifier':
         return <VerifierView api={client} state={state} />;
       case 'issuer':
-        return <LenderView api={client} state={state} />;
+        return <IssuerView api={client} state={state} />;
       case 'registry':
         return <RegistryView api={client} state={state} />;
     }

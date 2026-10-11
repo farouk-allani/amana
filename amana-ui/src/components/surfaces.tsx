@@ -255,8 +255,10 @@ export const Dialog: React.FC<{
   tone?: 'default' | 'danger';
   footer?: React.ReactNode;
   size?: 'sm' | 'md' | 'lg';
+  /** False while something must finish: no close button, Escape or backdrop. */
+  dismissible?: boolean;
   children?: React.ReactNode;
-}> = ({ open, onClose, title, description, icon, tone = 'default', footer, size = 'md', children }) => {
+}> = ({ open, onClose, title, description, icon, tone = 'default', footer, size = 'md', dismissible = true, children }) => {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -275,9 +277,12 @@ export const Dialog: React.FC<{
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
       onClose={onClose}
+      onCancel={(e) => {
+        if (!dismissible) e.preventDefault();
+      }}
       onClick={(e) => {
         // A click on the backdrop lands on the dialog element itself.
-        if (e.target === e.currentTarget) onClose();
+        if (dismissible && e.target === e.currentTarget) onClose();
       }}
     >
       <div className="dialog-inner">
@@ -297,9 +302,11 @@ export const Dialog: React.FC<{
               </p>
             )}
           </div>
-          <IconButton label="Close" onClick={onClose} className="dialog-close">
-            <X size={18} aria-hidden />
-          </IconButton>
+          {dismissible && (
+            <IconButton label="Close" onClick={onClose} className="dialog-close">
+              <X size={18} aria-hidden />
+            </IconButton>
+          )}
         </header>
         {children && <div className="dialog-body">{children}</div>}
         {footer && <footer className="dialog-footer">{footer}</footer>}
