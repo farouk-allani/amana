@@ -20,7 +20,7 @@
 
 > **Live on Midnight preview, protocol 3.** Registry `663c23414094c13a26ca98f476923a1d8b32bd631b9a83e3a3ad2a91df7d1c1e`, run end to end with real proofs: [14 transactions and 7 refusals](docs/evidence/preview-run.md). A borrower [proved on chain](https://preview.midnightexplorer.com/transactions/9dc0772440f5c2227bc98d6a6c48193efe6a0de2a55a767e1149cb373939cf71) that 8 + 6 on-time repayments from two institutions clear a threshold of 14, revealing neither institution nor the total. Forged counts, a voided record, an outsider answering someone else's check and a withdrawn institution issuing were all refused by the circuit, so nothing was sent. Re-check the chain side with no wallet using `npm run verify:onchain` (26 checks against [the recorded evidence](docs/evidence/preview.json), also run daily in CI), or repeat the whole run on a funded test wallet with `npm run evidence`.
 
-**Demo video:** [youtu.be/cTpo3uxrYkU](https://youtu.be/cTpo3uxrYkU) · **Pitch deck:** [Wave 2, 16 slides, PDF](docs/amana-deck.pdf)
+**Demo video:** [youtu.be/icJiG_0mlUI](https://youtu.be/icJiG_0mlUI) · **Pitch deck:** [Wave 2, 16 slides, PDF](docs/amana-deck.pdf)
 
 **Hosted build:** [amana-rust.vercel.app](https://amana-rust.vercel.app/). It needs what any Midnight DApp needs on your side: the Lace Midnight Preview wallet on the preview network with a funded wallet, and a proof server running locally on `:6300` (see [Deploy to preview](#deploy-to-preview)). Then paste the registry address above and **Join registry** to act as a borrower or verifier, or deploy a registry of your own to drive all four roles.
 
