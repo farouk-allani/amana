@@ -13,11 +13,11 @@
 
 import { readFileSync } from 'node:fs';
 import { evaluate } from './onchain-checks.mjs';
-import { readHistory, readSnapshot } from './onchain-read.mjs';
+import { authorise, readHistory, readSnapshot, redact } from './onchain-read.mjs';
 
 const network = process.argv[2] ?? 'preview';
 const evidence = JSON.parse(readFileSync(new URL(`../docs/evidence/${network}.json`, import.meta.url), 'utf8'));
-const indexer = process.env.AMANA_INDEXER_URL ?? evidence.indexer;
+const indexer = authorise(process.env.AMANA_INDEXER_URL ?? evidence.indexer, network);
 
 const snapshot = await readSnapshot(network, indexer, evidence.contract);
 const history = await readHistory(indexer, evidence.contract);
@@ -26,7 +26,7 @@ const transactions = new Map(evidence.transactions.map((tx) =>
 const results = evaluate(evidence, snapshot, transactions);
 
 console.log(`Amana on-chain verification · ${network} · registry ${evidence.contract}`);
-console.log(`Indexer ${indexer} · evidence recorded ${evidence.recorded}\n`);
+console.log(`Indexer ${redact(indexer)} · evidence recorded ${evidence.recorded}\n`);
 for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.ok ? '' : `\n      ${r.detail}`}`);
 const failed = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - failed} of ${results.length} checks passed.`);

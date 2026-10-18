@@ -26,12 +26,40 @@ const loadLedger = async () => {
 };
 
 const hex = (bytes) => Buffer.from(bytes).toString('hex');
+
+/** The indexer's subscription endpoint: `/ws` after the path, keeping any query (Blockfrost's project id). */
+const wsUrl = (indexer) => {
+  const url = new URL(indexer);
+  url.protocol = url.protocol.replace(/^http/, 'ws');
+  url.pathname = url.pathname.replace(/\/$/, '') + '/ws';
+  return url.toString();
+};
+
+/**
+ * Blockfrost's indexers need a project id, which is a credential and never
+ * recorded. Add it from the environment when the URL points there.
+ */
+export const authorise = (indexer, network) => {
+  const id = process.env[`BLOCKFROST_${network.toUpperCase()}_PROJECT_ID`];
+  const url = new URL(indexer);
+  if (!url.hostname.endsWith('.blockfrost.io') || url.searchParams.has('project_id')) return indexer;
+  if (!id) throw new Error(`The ${network} indexer is hosted by Blockfrost. Set BLOCKFROST_${network.toUpperCase()}_PROJECT_ID.`);
+  url.searchParams.set('project_id', id);
+  return url.toString();
+};
+
+/** The URL as it is safe to print: without the project id. */
+export const redact = (indexer) => {
+  const url = new URL(indexer);
+  url.searchParams.delete('project_id');
+  return url.toString();
+};
 const terms = (t) => ({ minOnTime: t.minOnTime, minPeriod: t.minPeriod, maxPeriod: t.maxPeriod });
 
 export const readSnapshot = async (network, indexer, contract) => {
   const ledger = await loadLedger();
   setNetworkId(network);
-  const provider = indexerPublicDataProvider(indexer, indexer.replace(/^http/, 'ws') + '/ws', globalThis.WebSocket);
+  const provider = indexerPublicDataProvider(indexer, wsUrl(indexer), globalThis.WebSocket);
   const state = await provider.queryContractState(contract);
   if (!state) throw new Error(`No contract at ${contract} on ${network}.`);
   const l = ledger(state.data);
@@ -53,7 +81,9 @@ export const readHistory = async (indexer, contract) => {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query }),
   });
   if (!response.ok) throw new Error(`Indexer returned HTTP ${response.status} for the registry history.`);
-  const actions = (await response.json()).data?.contract?.actions ?? [];
+  const body = await response.json();
+  if (body.errors?.length) throw new Error(`Indexer refused the history query: ${body.errors[0].message}`);
+  const actions = body.data?.contract?.actions ?? [];
   const kinds = { ContractDeploy: 'deploy', ContractCall: 'call', ContractUpdate: 'update' };
   return actions.map((a) => ({
     hash: a.transaction.hash, block: a.transaction.block.height, address: contract,

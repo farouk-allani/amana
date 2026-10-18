@@ -36,7 +36,7 @@ sent.forEach((step, i) => {
 
 const evidence = {
   network: name,
-  indexer: network.indexer,
+  indexer: network.publicIndexer ?? network.indexer,
   contract: run.contract,
   recorded: new Date().toISOString().slice(0, 10),
   ledger: {

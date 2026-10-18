@@ -40,6 +40,23 @@ export const networks = {
     faucet: 'https://midnight-tmnight-preview.nethermind.dev/',
     explorer: 'https://preview.midnightexplorer.com',
   },
+  // Preprod's indexer and node are hosted by Blockfrost. The project id is a
+  // credential, so it comes from the environment and `publicIndexer` is the
+  // form recorded in the published evidence.
+  get preprod() {
+    const id = process.env.BLOCKFROST_PREPROD_PROJECT_ID;
+    if (!id) throw new Error('Set BLOCKFROST_PREPROD_PROJECT_ID to the id of a Blockfrost "Midnight Preprod" project.');
+    return {
+      networkId: 'preprod',
+      indexer: `https://midnight-preprod.blockfrost.io/api/v0?project_id=${id}`,
+      indexerWS: `wss://midnight-preprod.blockfrost.io/api/v0/ws?project_id=${id}`,
+      publicIndexer: 'https://midnight-preprod.blockfrost.io/api/v0',
+      node: `https://rpc.midnight-preprod.blockfrost.io?project_id=${id}`,
+      proofServer: process.env.AMANA_PROOF_SERVER ?? 'http://127.0.0.1:6300',
+      faucet: 'https://midnight-tmnight-preprod.nethermind.dev/',
+      explorer: 'https://preprod.midnightexplorer.com',
+    };
+  },
 };
 
 const log = (message) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`);
