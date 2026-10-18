@@ -1,0 +1,35 @@
+{
+  "network": "preprod",
+  "indexer": "https://midnight-preprod.blockfrost.io/api/v0",
+  "contract": "1da3be974772f4c2c0adc93bda3caa37a04a31cdaa4bdd670b0b928709ef0f28",
+  "recorded": "2026-10-18",
+  "ledger": {
+    "protocolVersion": 3,
+    "authority": "defae9e5ce7426cbf36eb7e665f07e5c6863761fc0d4b7144cc87764b25bf09a",
+    "lenders": [
+      "25d85ac03c6915399f7621bc619321091bb7b551b59b7e83f952c5ce4fbd1cdb"
+    ],
+    "issuers": {
+      "0": "25d85ac03c6915399f7621bc619321091bb7b551b59b7e83f952c5ce4fbd1cdb"
+    },
+    "issuedCount": 2,
+    "revokedCount": 1,
+    "acceptedCount": 1
+  },
+  "transactions": [
+    { "kind": "deploy", "hash": "b8c7640bb2ffd488b5c17fe71c8aa473a6390d42ff36cd91f2c8792f56c7ed6f", "block": 3036868 },
+    { "kind": "call", "circuit": "claimAuthority", "hash": "5e80c59b4f58e12710ed0f94d74e6b4952ddb6f3b6d55adf24868fd9cf60120c", "block": 3036873 },
+    { "kind": "call", "circuit": "registerLender", "hash": "040c3b2a80fca1dc06d199479de8323f06926b9235e271cc45505ee065bbde82", "block": 3036878 },
+    { "kind": "call", "circuit": "registerLender", "hash": "ad8aeaf75ca7fa34d8ebda7c107d1f7499d4a7dd376b12b29f41cccead29d73c", "block": 3036882 },
+    { "kind": "call", "circuit": "issueAttestation", "hash": "9d471b515bc7fe6f8b772da68572608947fc685caf83d4bd3a8e93561ea469ea", "block": 3036886 },
+    { "kind": "call", "circuit": "issueAttestation", "hash": "0cef7934f7e88e245122f805520f21179efbc4657a4190959367e6556b6c6a0e", "block": 3036891 },
+    { "kind": "call", "circuit": "createCheck", "hash": "06430f33b909fa5360a4c7dda0b8e8d25efed120b107733440baae9672bfee92", "block": 3036895 },
+    { "kind": "call", "circuit": "proveCreditStanding", "hash": "f493653f6189afc6f3b91652fc6fbc97b93d882ce635f27bef89ca0535de8c6e", "block": 3036904 },
+    { "kind": "call", "circuit": "createCheck", "hash": "ba33040db732643d48c3845d017daced165ee65f27d8267534bada12c1568834", "block": 3036909 },
+    { "kind": "call", "circuit": "removeLender", "hash": "b228e43adb4a0dbe9f5872e9c56c809a6bf363ffc2c2fe719b3c350de9608f06", "block": 3036914 },
+    { "kind": "call", "circuit": "revokeOrphanedAttestation", "hash": "802900d37e03e025ee3bb99a1fc269bf949bc375d32e8e1cd0054953eb45bd87", "block": 3036918 },
+    { "kind": "call", "circuit": "createCheck", "hash": "293c6b2f353bf1c922594e3911fbdf0175e87a9404c0417220339698d4d33fc5", "block": 3036922 },
+    { "kind": "call", "circuit": "proposeAuthority", "hash": "07766c73486cd3688cc09d17bcbf80244b77e0f084ffc3a116e46b730b6b0270", "block": 3036926 },
+    { "kind": "call", "circuit": "acceptAuthority", "hash": "dd6d4631c4e32dff661712ed2c219f99ec353bf089ad9c0c1bc163317b738ec2", "block": 3036930 }
+  ]
+}
