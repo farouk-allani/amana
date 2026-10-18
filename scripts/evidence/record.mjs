@@ -20,6 +20,11 @@ import { readHistory, readSnapshot } from '../onchain-read.mjs';
 const name = process.argv[2] ?? 'preview';
 const network = networks[name];
 const doc = (file) => new URL(`../../docs/evidence/${file}`, import.meta.url);
+// The npm command for this network, as a reader would type it.
+const npm = (script) => (name === 'preview' ? `npm run ${script}` : `npm run ${script} -- ${name}`);
+const access = network.publicIndexer
+  ? ` The ${name} indexer is hosted by Blockfrost, so set \`BLOCKFROST_${name.toUpperCase()}_PROJECT_ID\` to the id of a free Blockfrost project for ${name} first.`
+  : '';
 const run = JSON.parse(readFileSync(doc(`${name}-run.json`), 'utf8'));
 
 const snapshot = await readSnapshot(name, network.indexer, run.contract);
@@ -65,7 +70,7 @@ const rows = run.steps.map((s, i) => {
 const refusals = run.steps.length - sent.length;
 writeFileSync(doc(`${name}-run.md`), `# Evidence run on ${name}
 
-Registry \`${run.contract}\`, run on ${run.finished.slice(0, 10)} with \`npm run evidence\`.
+Registry \`${run.contract}\`, run on ${run.finished.slice(0, 10)} with \`${npm('evidence')}\`.
 
 ${run.steps.length} steps: ${sent.length} transactions with real zero-knowledge proofs, and ${refusals} refusals. A refusal is a call the circuit rejected while it was executing locally, so no proof was produced and nothing reached the chain. Each refusal is recorded with the circuit's own assertion message.
 
@@ -75,6 +80,6 @@ One funded test wallet paid every fee; the participants are separate Amana ident
 |---|---|---|---|---|
 ${rows.join('\n')}
 
-Re-check the chain side with \`npm run verify:onchain\`. The transaction hashes above come from the public indexer, not from the run's own log.
+Re-check the chain side with \`${npm('verify:onchain')}\`.${access} The transaction hashes above come from the public indexer, not from the run's own log.
 `);
 console.log(`Recorded ${history.length} transactions and ${refusals} refusals for ${run.contract}.`);

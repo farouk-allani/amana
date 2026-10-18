@@ -1,6 +1,8 @@
 name: On-chain evidence
-# Re-checks the deployed registry against docs/evidence/ through the public
-# indexer: on every push to main, daily, and on demand. Needs no secrets.
+# Re-checks the deployed registries against docs/evidence/ through the public
+# indexers: on every push to main, daily, and on demand. Preview needs no
+# secrets. Preprod's indexer is hosted by Blockfrost and needs a project id in
+# the BLOCKFROST_PREPROD_PROJECT_ID secret; without it that step is skipped.
 on:
   push:
     branches: [main]
@@ -13,6 +15,8 @@ jobs:
   verify-onchain:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      BLOCKFROST_PREPROD_PROJECT_ID: ${{ secrets.BLOCKFROST_PREPROD_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,3 +29,6 @@ jobs:
         run: npm run compact:check
       - run: npm run test:scripts
       - run: npm run verify:onchain
+      - name: Verify the Preprod registry
+        if: env.BLOCKFROST_PREPROD_PROJECT_ID != '' && hashFiles('docs/evidence/preprod.json') != ''
+        run: npm run verify:onchain -- preprod
