@@ -213,9 +213,10 @@ Amana reads the indexer and proof-server endpoints from the connected wallet's o
 1. **Start a local proof server** and leave it running:
 
    ```sh
-   docker run -p 6300:6300 midnightnetwork/proof-server \
-     -- midnight-proof-server --network preview
+   docker run -p 6300:6300 midnightntwrk/proof-server:8.1.3
    ```
+
+   Version 8.1.3 is the one Midnight's [compatibility matrix](https://docs.midnight.network/relnotes/support-matrix) lists for ledger 8, which preview, Preprod and mainnet all run. It serves every network, so it takes no network flag. The older `midnightnetwork/proof-server:latest` image is a ledger 7 build and does not match the live networks.
 
 2. **Point Lace at it.** Settings » Midnight » proof server » `Local (http://localhost:6300)`. Set the wallet to the preview network. A local prover is currently the only option Lace supports, which is also the right choice: the prover sees the witnesses.
 
