@@ -20,6 +20,8 @@ import { isRole, Shell, type Role } from './shell/Shell.jsx';
 const loadSdk = () => import('./sdk.js');
 const loadRoleScreen = () => import('./views/RoleScreen.jsx');
 const RoleScreen = lazy(loadRoleScreen);
+// The no-wallet run: the compiled contract, executed in this browser.
+const Tour = lazy(() => import('./tour/Tour.jsx'));
 
 const ADDRESS_MEMORY = 'amana:last-contract-address';
 
@@ -41,6 +43,10 @@ const readMemory = (): string => {
   }
 };
 
+/** `#try` opens the no-wallet run, so it can be linked to directly. */
+const TOUR_HASH = '#try';
+const isTourHash = (): boolean => window.location.hash === TOUR_HASH;
+
 /** Development only: whether to open straight into the sample registry. */
 const wantsSample = (): boolean =>
   import.meta.env.DEV && new URLSearchParams(window.location.search).has('sample');
@@ -60,10 +66,13 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
   // How many values from earlier versions were found in clear and sealed.
   const [migrated, setMigrated] = useState(0);
   const [runtime, setRuntime] = useState<'loading' | 'ready' | 'failed'>('loading');
+  const [tour, setTour] = useState(isTourHash);
 
   // Fetch the runtime once the first screen is up, so it is ready by the
-  // time someone presses Join.
+  // time someone presses Join. The no-wallet run does not need it, so it
+  // waits until that is closed rather than competing for the connection.
   useEffect(() => {
+    if (tour) return;
     const later = (fn: () => void) =>
       'requestIdleCallback' in window ? window.requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 300);
     later(() => {
@@ -72,7 +81,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
         .catch(() => setRuntime('failed'));
       void loadRoleScreen().catch(() => undefined);
     });
-  }, []);
+  }, [tour]);
 
   const client = session.k === 'ready' ? session.client : null;
 
@@ -93,6 +102,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
   // Back and forward move between roles.
   useEffect(() => {
     const follow = () => {
+      setTour(isTourHash());
       const next = roleFromHash();
       setRole(next);
       setVisited((v) => (v.has(next) ? v : new Set(v).add(next)));
@@ -148,6 +158,18 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
     [address, logger, networkId, vault],
   );
 
+  const openTour = useCallback(() => {
+    window.history.pushState(null, '', TOUR_HASH);
+    setTour(true);
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  const closeTour = useCallback(() => {
+    window.history.pushState(null, '', window.location.pathname + window.location.search);
+    setTour(false);
+    window.scrollTo({ top: 0 });
+  }, []);
+
   const startSample = useCallback(() => {
     if (!import.meta.env.DEV) return;
     void import('./dev/sample-client.js').then(({ createSampleClient }) => {
@@ -159,6 +181,14 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
   useEffect(() => {
     if (wantsSample()) startSample();
   }, [startSample]);
+
+  if (!client && tour) {
+    return (
+      <Suspense fallback={<Loading text="Loading the contract…" />}>
+        <Tour networkId={networkId} onExit={closeTour} />
+      </Suspense>
+    );
+  }
 
   if (!client) {
     return (
@@ -174,6 +204,7 @@ export const App: React.FC<{ logger: Logger; networkId: string }> = ({ logger, n
           onJoin={() => void start('join')}
           onDeploy={() => void start('deploy')}
           onRestore={() => (vault?.state === 'unlocked' ? setPrivateData('restore') : setUnlockFor('restore'))}
+          onTry={openTour}
           onSample={import.meta.env.DEV ? startSample : undefined}
         />
         {vault && (

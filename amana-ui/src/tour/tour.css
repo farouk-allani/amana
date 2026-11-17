@@ -1,0 +1,553 @@
+/* Amana — portable private credit history.
+   Copyright (C) 2026 the Amana authors.
+   SPDX-License-Identifier: Apache-2.0 */
+
+/* The no-wallet run: steps on the left, the public ledger beside them. */
+
+.tour {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: var(--s-6) var(--s-12) var(--s-8);
+  overflow-x: clip;
+}
+
+.tour > :not(.skip-link) {
+  position: relative;
+  z-index: 1;
+}
+
+.tour-top,
+.tour-main,
+.tour-foot {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+}
+
+.tour-top {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.tour-top-space {
+  flex: 1;
+}
+
+.tour-main {
+  flex: 1;
+  padding: var(--s-10) 0 var(--s-12);
+}
+
+.tour-main:focus {
+  outline: none;
+}
+
+/* --- intro -------------------------------------------------------------- */
+
+.tour-intro {
+  max-width: 860px;
+  margin-bottom: var(--s-10);
+}
+
+.tour-title {
+  margin-top: var(--s-2);
+  font-size: clamp(28px, 3.6vw, 46px);
+  font-stretch: var(--stretch-display);
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.tour-lede {
+  margin-top: var(--s-4);
+  color: var(--gold-text);
+  font-size: clamp(17px, 1.5vw, 20px);
+  font-weight: 550;
+  line-height: 1.45;
+  max-width: 60ch;
+}
+
+.tour-honest {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-5);
+  padding: var(--s-4) var(--s-5);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  list-style: none;
+}
+
+.tour-honest b {
+  color: var(--text);
+}
+
+.tour-honest a {
+  color: var(--gold-text);
+}
+
+/* --- layout ------------------------------------------------------------- */
+
+.tour-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+  gap: var(--s-8);
+}
+
+.tour-steps {
+  display: grid;
+  gap: var(--s-5);
+  min-width: 0;
+}
+
+.tour-steps .panel.is-waiting {
+  opacity: 0.6;
+}
+
+.tour-steps .panel-head {
+  flex-wrap: wrap;
+}
+
+.tour-step-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 3px var(--s-3) 3px 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.tour-step-n {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.tour-step-mark.is-done {
+  border-color: var(--green-line);
+  color: var(--green-text);
+}
+
+.tour-step-mark.is-done .tour-step-n {
+  background: var(--green-soft);
+  color: var(--green-text);
+}
+
+.tour-note {
+  margin-top: var(--s-4);
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+}
+
+/* --- step 1: the records ------------------------------------------------ */
+
+.tour-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+}
+
+/* --- step 2: the question ----------------------------------------------- */
+
+.tour-ask {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-5);
+  flex-wrap: wrap;
+}
+
+.tour-ask .field {
+  flex: 1 1 320px;
+  max-width: 420px;
+}
+
+.tour-ask > .button {
+  margin-top: 26px;
+}
+
+.tour-committed {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-md);
+  background: var(--gold-soft);
+  line-height: 1.5;
+}
+
+.tour-committed svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--gold-text);
+}
+
+/* --- step 3: the answer ------------------------------------------------- */
+
+.tour-answer {
+  display: grid;
+  gap: var(--s-5);
+  justify-items: start;
+  scroll-margin-top: var(--s-8);
+}
+
+.tour-answer > .privacy-split,
+.tour-answer > .alert {
+  width: 100%;
+}
+
+.tour-answer > .receipt {
+  width: 100%;
+  max-width: 520px;
+}
+
+.tour-answer .tour-note {
+  margin-top: 0;
+}
+
+.tour-reason {
+  display: inline-block;
+  padding: 1px var(--s-2);
+  border: 1px solid var(--red-line);
+  border-radius: var(--r-xs);
+  background: var(--red-soft);
+  color: var(--red-text);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+}
+
+/* --- step 4: cheating --------------------------------------------------- */
+
+.tour-cheat-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-4);
+}
+
+.tour-cheat-score {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.tour-cheats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  list-style: none;
+}
+
+.tour-cheat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+.tour-cheat.is-refused {
+  border-color: var(--red-line);
+}
+
+.tour-cheat-title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+.tour-cheat-attempt {
+  flex: 1;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.tour-verdict {
+  display: grid;
+  gap: var(--s-2);
+  justify-items: start;
+  width: 100%;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.tour-verdict-head {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--red-text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.tour-verdict-why {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+/* --- step 5: the chain -------------------------------------------------- */
+
+.tour-links {
+  display: grid;
+  gap: var(--s-4);
+  list-style: none;
+}
+
+.tour-links li {
+  display: grid;
+  gap: 2px;
+}
+
+.tour-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: fit-content;
+  color: var(--gold-text);
+  font-weight: 650;
+}
+
+.tour-links span {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.tour-links code {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--text);
+}
+
+.tour-next {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+}
+
+/* --- the ledger --------------------------------------------------------- */
+
+.tour-ledger {
+  position: sticky;
+  top: var(--s-6);
+  min-width: 0;
+}
+
+.tour-ledger-card {
+  padding: var(--s-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--ink-950);
+  box-shadow: var(--shadow-2);
+}
+
+.tour-ledger-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+.tour-ledger-title svg {
+  color: var(--gold-text);
+}
+
+.tour-ledger-lede {
+  margin-top: var(--s-1);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.tour-ledger-rows {
+  display: grid;
+  margin-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+
+.tour-ledger-rows > div {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.tour-ledger-rows dt {
+  color: var(--text-3);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.tour-ledger-rows dd {
+  margin: 0;
+  display: grid;
+  gap: 1px;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.tour-ledger-rows dd span + span,
+.tour-ledger-rows dd code + span {
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.tour-ledger-rows code {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+
+.tour-ledger-rows .is-cleared dd > span:first-child {
+  color: var(--green-text);
+  font-weight: 700;
+}
+
+.tour-ledger-rows .is-new {
+  animation: tour-arrive 1.8s var(--ease-out);
+}
+
+@keyframes tour-arrive {
+  from {
+    background: var(--gold-soft);
+    box-shadow: -8px 0 0 var(--gold-soft), 8px 0 0 var(--gold-soft);
+  }
+  to {
+    background: transparent;
+    box-shadow: -8px 0 0 transparent, 8px 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-ledger-rows .is-new {
+    animation: none;
+  }
+}
+
+.tour-ledger-not {
+  margin-top: var(--s-4);
+}
+
+.tour-ledger-not-title {
+  color: var(--text-3);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+}
+
+.tour-ledger-not ul {
+  display: grid;
+  gap: var(--s-1);
+  margin-top: var(--s-2);
+  list-style: none;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.tour-ledger-not li {
+  position: relative;
+  padding-left: var(--s-4);
+}
+
+.tour-ledger-not li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 8px;
+  height: 1.5px;
+  background: var(--text-3);
+}
+
+.tour-ledger-foot {
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+  color: var(--text-3);
+  font-size: var(--fs-xs);
+}
+
+.tour-foot {
+  margin-top: 0;
+}
+
+/* --- narrow screens ----------------------------------------------------- */
+
+@media (max-width: 1040px) {
+  .tour-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tour-ledger {
+    position: static;
+  }
+}
+
+@media (max-width: 960px) {
+  .tour {
+    padding: var(--s-4) var(--s-4) var(--s-6);
+  }
+
+  .tour-main {
+    padding: var(--s-6) 0 var(--s-8);
+  }
+
+  .tour-intro {
+    margin-bottom: var(--s-6);
+  }
+}
+
+@media (max-width: 640px) {
+  /* The step badge goes above the title, so the text keeps the full width. */
+  .tour-steps .panel-actions {
+    order: -1;
+    width: 100%;
+  }
+
+  .tour-cards,
+  .tour-cheats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tour-ask > .button {
+    margin-top: 0;
+    width: 100%;
+  }
+}

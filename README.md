@@ -24,7 +24,9 @@
 
 **Demo video:** [youtu.be/icJiG_0mlUI](https://youtu.be/icJiG_0mlUI) · **Pitch deck:** [Wave 2, 16 slides, PDF](docs/amana-deck.pdf)
 
-**Hosted build:** [amana-rust.vercel.app](https://amana-rust.vercel.app/). It needs what any Midnight DApp needs on your side: the Lace Midnight Preview wallet on the preview network with a funded wallet, and a proof server running locally on `:6300` (see [Deploy to preview](#deploy-to-preview)). The hosted build is configured for preview, so paste the preview registry address above and **Join registry** to act as a borrower or verifier, or deploy a registry of your own to drive all four roles.
+**Try it with no wallet:** [amana-rust.vercel.app/#try](https://amana-rust.vercel.app/#try). The compiled contract runs in your browser: a borrower clears a lender's question without revealing her records, and six attempts to cheat are refused by the contract's own asserts. No zero-knowledge proof is built and nothing is sent to a network there; the run with real proofs is the Preprod one above.
+
+**Hosted build with a wallet:** [amana-rust.vercel.app](https://amana-rust.vercel.app/). It needs what any Midnight DApp needs on your side: the Lace Midnight Preview wallet on the preview network with a funded wallet, and a proof server running locally on `:6300` (see [Deploy to preview](#deploy-to-preview)). The hosted build is configured for preview, so paste the preview registry address above and **Join registry** to act as a borrower or verifier, or deploy a registry of your own to drive all four roles.
 
 <p align="center">
   <img src="docs/assets/amana-app-showcase.png" alt="Amana: the borrower's repayment passport, the review before proving, and the lender's receipt" width="1100">

@@ -468,6 +468,17 @@
   box-shadow: var(--shadow-3);
 }
 
+.connect-try,
+.connect-registry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.connect-registry .connect-card-title {
+  font-size: var(--fs-xl);
+}
+
 .connect-card-title {
   font-size: var(--fs-2xl);
   font-stretch: var(--stretch-display);

@@ -45,9 +45,11 @@ export const Connect: React.FC<{
   onJoin: () => void;
   onDeploy: () => void;
   onRestore: () => void;
+  /** Open the no-wallet run. */
+  onTry: () => void;
   /** Development builds only. */
   onSample?: () => void;
-}> = ({ networkId, address, onAddress, connecting, runtime, error, onDismissError, onJoin, onDeploy, onRestore, onSample }) => {
+}> = ({ networkId, address, onAddress, connecting, runtime, error, onDismissError, onJoin, onDeploy, onRestore, onTry, onSample }) => {
   const [wallet, setWallet] = useState<'checking' | 'found' | 'missing'>('checking');
 
   // The extension injects itself after the page's scripts may have run.
@@ -107,119 +109,138 @@ export const Connect: React.FC<{
           </ul>
         </section>
 
-        <section className="connect-card" aria-labelledby="connect-title">
-          <h2 id="connect-title" className="connect-card-title">
-            Open a registry
-          </h2>
-          <p className="connect-card-lede">
-            A registry is one Amana deployment on Midnight {networkId}. Join an existing one, or deploy your own to try
-            all four roles.
-          </p>
-
-          <ul className="requirements" aria-label="What you need">
-            <li className={`requirement is-${wallet}`}>
-              <span className="requirement-icon" aria-hidden>
-                {wallet === 'found' ? <CircleCheck size={18} /> : <Wallet size={18} />}
-              </span>
-              <span className="requirement-text">
-                <b>Lace Midnight wallet</b>
-                <span>
-                  {wallet === 'checking'
-                    ? 'Looking for the extension…'
-                    : wallet === 'found'
-                      ? `Found. Set it to the ${networkId} network.`
-                      : 'Not found in this browser. Install Lace Midnight Preview and reload.'}
-                </span>
-              </span>
-            </li>
-            <li className="requirement">
-              <span className="requirement-icon" aria-hidden>
-                <Cpu size={18} />
-              </span>
-              <span className="requirement-text">
-                <b>A proof server on this computer</b>
-                <span>Running on port 6300 and selected in Lace. Proofs are built there, not by us.</span>
-              </span>
-            </li>
-          </ul>
-
-          {error !== null && error !== undefined && <ErrorAlert error={error} onDismiss={onDismissError} />}
-
-          {connecting && (
-            <Alert tone="info" title={connecting === 'deploy' ? 'Deploying a registry' : 'Joining the registry'}>
-              Approve the request in Lace.{' '}
-              {connecting === 'deploy' ? 'Deployment builds a proof and takes a minute or two.' : ''}
-            </Alert>
-          )}
-
-          <Field
-            label="Registry address"
-            error={addressError}
-            hint={
-              <>
-                Paste the address you were given, or{' '}
-                <button type="button" className="link-button" onClick={() => onAddress(PUBLIC_PREVIEW_REGISTRY)}>
-                  use the public preview registry
-                </button>
-                .
-              </>
-            }
-          >
-            <Input
-              mono
-              value={address}
-              placeholder="64 hexadecimal characters"
-              spellCheck={false}
-              autoComplete="off"
-              onChange={(e) => onAddress(e.target.value)}
-            />
-          </Field>
-
-          <div className="connect-actions">
-            <Button
-              size="lg"
-              block
-              iconEnd={<ArrowRight size={18} aria-hidden />}
-              loading={connecting === 'join'}
-              disabled={!utils.isHex32(trimmed) || connecting !== null}
-              onClick={onJoin}
-            >
-              Join registry
-            </Button>
-            <Button variant="secondary" block loading={connecting === 'deploy'} disabled={connecting !== null} onClick={onDeploy}>
-              Deploy a new registry
-            </Button>
-            {runtime !== 'ready' && (
-              <p className="connect-runtime" role="status">
-                {runtime === 'loading' ? (
-                  <>
-                    <Spinner size={12} /> Loading the Midnight runtime in the background (about 14 MB, first visit only)
-                  </>
-                ) : (
-                  'The Midnight runtime did not load. Check your connection and reload the page.'
-                )}
-              </p>
-            )}
-            <p className="connect-restore">
-              New browser?{' '}
-              <button type="button" className="link-button" onClick={onRestore}>
-                Restore your key and records from a backup
-              </button>
+        <div className="connect-card">
+          <section className="connect-try" aria-labelledby="try-title">
+            <h2 id="try-title" className="connect-card-title">
+              Try it now, no wallet
+            </h2>
+            <p className="connect-card-lede">
+              Run Amana’s contract in your browser. Follow one borrower from two lenders she repaid to a third that has
+              never seen her, then try six ways to cheat. About a minute.
             </p>
-          </div>
+            <Button size="lg" block iconEnd={<ArrowRight size={18} aria-hidden />} onClick={onTry}>
+              Try it in your browser
+            </Button>
+          </section>
 
-          {import.meta.env.DEV && onSample && (
-            <div className="connect-sample">
-              <span className="connect-sample-rule">
-                <span>Development build</span>
-              </span>
-              <Button variant="ghost" block icon={<FlaskConical size={16} aria-hidden />} onClick={onSample}>
-                Preview with sample data
+          <span className="connect-sample-rule">
+            <span>Or use it on Midnight {networkId}</span>
+          </span>
+
+          <section className="connect-registry" aria-labelledby="connect-title">
+            <h2 id="connect-title" className="connect-card-title">
+              Open a registry
+            </h2>
+            <p className="connect-card-lede">
+              A registry is one Amana deployment on Midnight {networkId}. Join an existing one, or deploy your own to try
+              all four roles.
+            </p>
+
+            <ul className="requirements" aria-label="What you need">
+              <li className={`requirement is-${wallet}`}>
+                <span className="requirement-icon" aria-hidden>
+                  {wallet === 'found' ? <CircleCheck size={18} /> : <Wallet size={18} />}
+                </span>
+                <span className="requirement-text">
+                  <b>Lace Midnight wallet</b>
+                  <span>
+                    {wallet === 'checking'
+                      ? 'Looking for the extension…'
+                      : wallet === 'found'
+                        ? `Found. Set it to the ${networkId} network.`
+                        : 'Not found in this browser. Install Lace Midnight Preview and reload.'}
+                  </span>
+                </span>
+              </li>
+              <li className="requirement">
+                <span className="requirement-icon" aria-hidden>
+                  <Cpu size={18} />
+                </span>
+                <span className="requirement-text">
+                  <b>A proof server on this computer</b>
+                  <span>Running on port 6300 and selected in Lace. Proofs are built there, not by us.</span>
+                </span>
+              </li>
+            </ul>
+
+            {error !== null && error !== undefined && <ErrorAlert error={error} onDismiss={onDismissError} />}
+
+            {connecting && (
+              <Alert tone="info" title={connecting === 'deploy' ? 'Deploying a registry' : 'Joining the registry'}>
+                Approve the request in Lace.{' '}
+                {connecting === 'deploy' ? 'Deployment builds a proof and takes a minute or two.' : ''}
+              </Alert>
+            )}
+
+            <Field
+              label="Registry address"
+              error={addressError}
+              hint={
+                <>
+                  Paste the address you were given, or{' '}
+                  <button type="button" className="link-button" onClick={() => onAddress(PUBLIC_PREVIEW_REGISTRY)}>
+                    use the public preview registry
+                  </button>
+                  .
+                </>
+              }
+            >
+              <Input
+                mono
+                value={address}
+                placeholder="64 hexadecimal characters"
+                spellCheck={false}
+                autoComplete="off"
+                onChange={(e) => onAddress(e.target.value)}
+              />
+            </Field>
+
+            <div className="connect-actions">
+              <Button
+                variant="secondary"
+                block
+                iconEnd={<ArrowRight size={18} aria-hidden />}
+                loading={connecting === 'join'}
+                disabled={!utils.isHex32(trimmed) || connecting !== null}
+                onClick={onJoin}
+              >
+                Join registry
               </Button>
-              <p>Fictional institutions, held in memory. Nothing is sent to a network.</p>
+              <Button variant="ghost" block loading={connecting === 'deploy'} disabled={connecting !== null} onClick={onDeploy}>
+                Deploy a new registry
+              </Button>
+              {runtime !== 'ready' && (
+                <p className="connect-runtime" role="status">
+                  {runtime === 'loading' ? (
+                    <>
+                      <Spinner size={12} /> Loading the Midnight runtime in the background (about 14 MB, first visit only)
+                    </>
+                  ) : (
+                    'The Midnight runtime did not load. Check your connection and reload the page.'
+                  )}
+                </p>
+              )}
+              <p className="connect-restore">
+                New browser?{' '}
+                <button type="button" className="link-button" onClick={onRestore}>
+                  Restore your key and records from a backup
+                </button>
+              </p>
             </div>
-          )}
-        </section>
+
+            {import.meta.env.DEV && onSample && (
+              <div className="connect-sample">
+                <span className="connect-sample-rule">
+                  <span>Development build</span>
+                </span>
+                <Button variant="ghost" block icon={<FlaskConical size={16} aria-hidden />} onClick={onSample}>
+                  Preview with sample data
+                </Button>
+                <p>Fictional institutions, held in memory. Nothing is sent to a network.</p>
+              </div>
+            )}
+          </section>
+        </div>
       </main>
 
       <footer className="connect-foot">

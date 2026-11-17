@@ -196,8 +196,15 @@ export const Receipt: React.FC<{
   network: string;
   /** What the result does not tell the reader. */
   notTold?: readonly string[];
+  /**
+   * Where the result came from, when it was not a proof accepted on a chain:
+   * the no-wallet run executes the circuit in the browser and says so.
+   */
+  evidence?: string;
+  /** Replaces "Midnight {network}" in the same case. */
+  venue?: string;
   children?: React.ReactNode;
-}> = ({ status, threshold, from, to, network, notTold, children }) => (
+}> = ({ status, threshold, from, to, network, notTold, evidence, venue, children }) => (
   <article className={`receipt receipt-${status}`} aria-label="Credit check result">
     <header className="receipt-head">
       <span className="receipt-brand">
@@ -232,11 +239,13 @@ export const Receipt: React.FC<{
       </div>
       <div>
         <dt>Evidence</dt>
-        <dd>{status === 'cleared' ? 'Zero-knowledge proof, accepted on chain' : 'Not yet submitted'}</dd>
+        <dd>
+          {status === 'cleared' ? (evidence ?? 'Zero-knowledge proof, accepted on chain') : 'Not yet submitted'}
+        </dd>
       </div>
       <div>
-        <dt>Network</dt>
-        <dd>Midnight {network}</dd>
+        <dt>{venue ? 'Where' : 'Network'}</dt>
+        <dd>{venue ?? `Midnight ${network}`}</dd>
       </div>
     </dl>
 
