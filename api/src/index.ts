@@ -1,6 +1,7 @@
 // Copyright (C) 2026 the Amana authors.
 // SPDX-License-Identifier: Apache-2.0
-import { type ContractAddress, toHex } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
+import { ContractState, type ContractAddress, toHex } from '@midnight-ntwrk/midnight-js-protocol/v9/compact-runtime';
+import type { SerializedContractState } from '@midnight-ntwrk/midnight-js-types';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { BehaviorSubject, combineLatest, map, switchMap, type Observable } from 'rxjs';
 import type { Logger } from 'pino';
@@ -20,6 +21,14 @@ export type RepaymentRecord = {
 };
 export type IssuedAttestation = { readonly attestation: Attestation; readonly leafIndex: bigint };
 
+/**
+ * A registry's ledger from the bytes the indexer serves. Decoded with the
+ * runtime the contract was compiled against; a registry deployed before the
+ * ledger 9 fork is refused here, because this client builds ledger 9 calls.
+ */
+const readLedgerState = (state: SerializedContractState): Amana.Ledger =>
+  Amana.ledger(state.deserialize({ v9: ContractState }).data);
+
 export class AmanaAPI {
   private readonly revision = new BehaviorSubject(0);
   // One pending witness operation per device instance. Avoid sharing a profile across tabs.
@@ -30,15 +39,16 @@ export class AmanaAPI {
     private readonly logger?: Logger,
   ) {
     this.deployedContractAddress = deployedContract.deployTxData.public.contractAddress;
-    providers.privateStateProvider.setContractAddress(this.deployedContractAddress);
+    this.privateStates = providers.privateStateProvider.forContract(this.deployedContractAddress);
     const ledger$ = providers.publicDataProvider
       .contractStateObservable(this.deployedContractAddress, { type: 'latest' })
-      .pipe(map((state) => Amana.ledger(state.data)));
+      .pipe(map(({ value }) => readLedgerState(value.contractState)));
     this.state$ = combineLatest([ledger$, this.revision]).pipe(
       switchMap(async ([ledger]) => this.derive(ledger, await this.readPrivateState())),
     );
   }
   readonly deployedContractAddress: ContractAddress;
+  private readonly privateStates: ReturnType<AmanaProviders['privateStateProvider']['forContract']>;
   readonly state$: Observable<AmanaDerivedState>;
 
   private exclusive<T>(operation: () => Promise<T>): Promise<T> {
@@ -69,18 +79,18 @@ export class AmanaAPI {
     };
   }
   private async readPrivateState(): Promise<AmanaPrivateState> {
-    const ps = await this.providers.privateStateProvider.get(amanaPrivateStateKey);
+    const ps = await this.privateStates.get(amanaPrivateStateKey);
     if (!ps) throw new Error('Amana private state is missing. Reconnect or restore your device backup.');
     return ps;
   }
   private async updatePrivateState(f: (ps: AmanaPrivateState) => AmanaPrivateState): Promise<void> {
-    await this.providers.privateStateProvider.set(amanaPrivateStateKey, f(await this.readPrivateState()));
+    await this.privateStates.set(amanaPrivateStateKey, f(await this.readPrivateState()));
     this.revision.next(this.revision.value + 1);
   }
   private async readLedger(): Promise<Amana.Ledger> {
     const state = await this.providers.publicDataProvider.queryContractState(this.deployedContractAddress);
     if (!state) throw new Error('Registry state unavailable. Check the network connection.');
-    return Amana.ledger(state.data);
+    return readLedgerState(state.contractState);
   }
   async lenderKey(): Promise<string> {
     return toHex(Amana.pureCircuits.lenderKey((await this.readPrivateState()).secretKey));
@@ -226,11 +236,12 @@ export class AmanaAPI {
   static async join(providers: AmanaProviders, contractAddress: ContractAddress, logger?: Logger): Promise<AmanaAPI> {
     const state = await providers.publicDataProvider.queryContractState(contractAddress);
     if (!state) throw new Error('Registry not found on the selected network.');
+    if (state.contractState.era !== 'v9')
+      throw new Error('This registry was deployed before Midnight moved to ledger 9 and cannot be joined by this client; deploy a fresh one.');
     try {
-      if (Amana.ledger(state.data).protocolVersion !== 3n) throw new Error('version');
+      if (readLedgerState(state.contractState).protocolVersion !== 3n) throw new Error('version');
     } catch { throw new Error('Incompatible registry. This client requires an Amana protocol version 3 registry; deploy a fresh one.'); }
-    providers.privateStateProvider.setContractAddress(contractAddress);
-    const existing = await providers.privateStateProvider.get(amanaPrivateStateKey);
+    const existing = await providers.privateStateProvider.forContract(contractAddress).get(amanaPrivateStateKey);
     const deployed = await findDeployedContract(providers, {
       contractAddress, compiledContract: AmanaCompiledContract, privateStateId: amanaPrivateStateKey,
       initialPrivateState: existing ?? createAmanaPrivateState(utils.randomBytes(32)),

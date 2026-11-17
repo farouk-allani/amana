@@ -12,7 +12,7 @@
 
 import { existsSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
+import { ContractState } from '@midnight-ntwrk/compact-runtime';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 
 const bindings = fileURLToPath(new URL('../contract/src/managed/amana/contract/index.js', import.meta.url));
@@ -58,11 +58,15 @@ const terms = (t) => ({ minOnTime: t.minOnTime, minPeriod: t.minPeriod, maxPerio
 
 export const readSnapshot = async (network, indexer, contract) => {
   const ledger = await loadLedger();
-  setNetworkId(network);
-  const provider = indexerPublicDataProvider(indexer, wsUrl(indexer), globalThis.WebSocket);
-  const state = await provider.queryContractState(contract);
-  if (!state) throw new Error(`No contract at ${contract} on ${network}.`);
-  const l = ledger(state.data);
+  const provider = indexerPublicDataProvider({ queryURL: indexer, subscriptionURL: wsUrl(indexer), webSocket: globalThis.WebSocket });
+  const read = await provider.queryContractState(contract);
+  if (!read) throw new Error(`No contract at ${contract} on ${network}.`);
+  // The indexer serves bytes tagged with the ledger that wrote them. A
+  // registry deployed before the ledger 9 fork reads as ledger 9 once a
+  // post-fork transaction has touched it; one untouched since does not.
+  if (read.contractState.era !== 'v9')
+    throw new Error(`The registry's state on ${network} was written by ledger ${read.contractState.era}; this reader decodes ledger 9.`);
+  const l = ledger(read.contractState.deserialize({ v9: ContractState }).data);
   return {
     protocolVersion: l.protocolVersion, bootstrapped: l.bootstrapped, authority: hex(l.authority),
     lenders: [...l.lenders].map(hex), issuers: [...l.issuers].map(([leaf, lender]) => [leaf, hex(lender)]),

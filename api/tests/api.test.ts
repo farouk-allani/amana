@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, vi } from 'vitest';
 import { BehaviorSubject, firstValueFrom, filter, timeout } from 'rxjs';
-import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { AmanaAPI, amanaPrivateStateKey, utils, type AmanaPrivateState, type AmanaProviders } from '../src/index.js';
 import { AmanaSimulator } from '../../contract/src/test/amana-simulator.js';
@@ -10,15 +9,16 @@ import { createAmanaPrivateState } from '../../contract/src/witnesses.js';
 vi.mock('@midnight-ntwrk/midnight-js-contracts', async (original) => ({
   ...await original<object>(), findDeployedContract: vi.fn(),
 }));
-setNetworkId('undeployed');
 const address = 'ab'.repeat(32), now = 680n;
 const rec = { onTime: 14n, total: 14n, periodStart: now - 23n, periodEnd: now };
 const policy = { minOnTime: 14n, minPeriod: now - 23n, maxPeriod: now };
 
 /** Real compiled circuits; network/finalization are simulated, not cryptographic proof generation. */
 const harness = async () => {
-  const sim = new AmanaSimulator();
-  const ledger$ = new BehaviorSubject({ data: sim.circuitContext.currentQueryContext.state });
+  const sim = await AmanaSimulator.create();
+  // The indexer serves state as era-tagged bytes; this stands in for one read.
+  const read = () => ({ contractState: { era: 'v9' as const, deserialize: () => ({ data: sim.state }) } });
+  const ledger$ = new BehaviorSubject({ value: read() });
   const clients = new Map<string, { api: AmanaAPI; ps: AmanaPrivateState | null; calls: Record<string, ReturnType<typeof vi.fn>> }>();
   const client = async (actor: string) => {
     if (clients.has(actor)) return clients.get(actor)!;
@@ -27,21 +27,20 @@ const harness = async () => {
     for (const name of Object.keys(sim.contract.impureCircuits)) {
       calls[name] = vi.fn(async (...args: unknown[]) => {
         sim.as(actor);
-        sim.circuitContext.currentPrivateState = box.ps!;
-        const circuit = sim.contract.impureCircuits[name as keyof typeof sim.contract.impureCircuits];
-        const result = (circuit as Function)(sim.circuitContext, ...args);
-        sim.circuitContext = result.context;
-        box.ps = result.context.currentPrivateState;
-        ledger$.next({ data: sim.circuitContext.currentQueryContext.state });
+        sim.privateState = box.ps!;
+        const result = await (sim.run as (c: string, ...a: unknown[]) => ReturnType<typeof sim.run>)(name, ...args);
+        box.ps = sim.privateState;
+        ledger$.next({ value: read() });
         return { private: { result: result.result } };
       });
     }
     const found = { deployTxData: { public: { contractAddress: address } }, callTx: calls };
     vi.mocked(findDeployedContract).mockResolvedValueOnce(found as never);
+    const states = { get: vi.fn(async () => box.ps),
+      set: vi.fn(async (key: string, ps: AmanaPrivateState) => { expect(key).toBe(amanaPrivateStateKey); box.ps = ps; }) };
     const providers = {
-      privateStateProvider: { setContractAddress: vi.fn(), get: vi.fn(async () => box.ps),
-        set: vi.fn(async (key: string, ps: AmanaPrivateState) => { expect(key).toBe(amanaPrivateStateKey); box.ps = ps; }) },
-      publicDataProvider: { queryContractState: vi.fn(async () => ({ data: sim.circuitContext.currentQueryContext.state })),
+      privateStateProvider: { forContract: vi.fn(() => states) },
+      publicDataProvider: { queryContractState: vi.fn(async () => read()),
         contractStateObservable: () => ledger$ },
     } as unknown as AmanaProviders;
     const api = await AmanaAPI.join(providers, address);

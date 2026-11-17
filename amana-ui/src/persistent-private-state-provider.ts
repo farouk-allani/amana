@@ -25,9 +25,10 @@
 import type {
   ContractAddress,
   SigningKey,
-} from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
+} from '@midnight-ntwrk/midnight-js-protocol/v9/compact-runtime';
 import { deriveKey, fromHex, open, randomBytes, seal, toHex } from './vault/crypto.js';
 import type {
+  ContractPrivateStates,
   ExportPrivateStatesOptions,
   ExportSigningKeysOptions,
   ImportPrivateStatesOptions,
@@ -126,18 +127,9 @@ export const persistentPrivateStateProvider = <
   PSI extends PrivateStateId,
   PS = unknown,
 >(store: PrivateStore): PrivateStateProvider<PSI, PS> => {
-  let contractAddress: ContractAddress | null = null;
-
-  const requireContractAddress = (): ContractAddress => {
-    if (contractAddress === null) {
-      throw new Error(
-        'Amana: contract address not set; call setContractAddress() before touching private state',
-      );
-    }
-    return contractAddress;
-  };
-
-  const stateKey = (address: ContractAddress): string => `${NAMESPACE}:${address}`;
+  // Addresses are compared in lower case, as the SDK's interface requires.
+  // Amana has always stored them as lower-case hex, so earlier data still opens.
+  const stateKey = (address: ContractAddress): string => `${NAMESPACE}:${address.toLowerCase()}`;
 
   const readScope = async (address: ContractAddress): Promise<Record<string, unknown>> => {
     const raw = await store.get(stateKey(address));
@@ -165,101 +157,110 @@ export const persistentPrivateStateProvider = <
   const writeSigningKeys = (keys: Record<ContractAddress, SigningKey>): Promise<void> =>
     store.set(SIGNING_NAMESPACE, encodePrivateState(keys));
 
+  const forContract = (contractAddress: ContractAddress): ContractPrivateStates<PSI, PS> => {
+    if (typeof contractAddress !== 'string' || !/^(?:[0-9a-fA-F]{2})+$/.test(contractAddress))
+      throw new Error('Amana: not a contract address.');
+    const address = contractAddress.toLowerCase();
+    return {
+      contractAddress: address,
+
+      async set(key: PSI, state: PS): Promise<void> {
+        const scope = await readScope(address);
+        scope[key] = state;
+        await writeScope(address, scope);
+      },
+
+      async get(key: PSI): Promise<PS | null> {
+        const scope = await readScope(address);
+        return (scope[key] as PS | undefined) ?? null;
+      },
+
+      async remove(key: PSI): Promise<void> {
+        const scope = await readScope(address);
+        delete scope[key];
+        await writeScope(address, scope);
+      },
+
+      clear(): Promise<void> {
+        return store.remove(stateKey(address));
+      },
+
+      async exportPrivateStates(options?: ExportPrivateStatesOptions): Promise<PrivateStateExport> {
+        const password = requirePassword(options?.password, 'private state');
+        const scope = await readScope(address);
+        const body = encodePrivateState({
+          contractAddress: address,
+          states: Object.fromEntries(Object.entries(scope).map(([id, value]) => [id, encodePrivateState(value)])),
+        });
+        return { format: 'midnight-private-state-export', ...(await sealExport(password, STATES_LABEL, body)) };
+      },
+
+      async importPrivateStates(
+        exportData: PrivateStateExport,
+        options?: ImportPrivateStatesOptions,
+      ): Promise<ImportPrivateStatesResult> {
+        const conflictStrategy = options?.conflictStrategy ?? 'error';
+        const password = requirePassword(options?.password, 'private state');
+        const payload = decodePrivateState<{ states?: Record<string, string> }>(
+          await openExport(password, STATES_LABEL, exportData),
+        );
+        const incoming = payload.states ?? {};
+        const scope = await readScope(address);
+
+        let imported = 0;
+        let skipped = 0;
+        let overwritten = 0;
+
+        for (const [stateId, serialized] of Object.entries(incoming)) {
+          const exists = Object.prototype.hasOwnProperty.call(scope, stateId);
+          if (exists) {
+            if (conflictStrategy === 'skip') {
+              skipped += 1;
+              continue;
+            }
+            if (conflictStrategy === 'error') {
+              throw new Error(`Amana: private state conflict for '${stateId}'`);
+            }
+            overwritten += 1;
+          } else {
+            imported += 1;
+          }
+          scope[stateId] = decodePrivateState(serialized);
+        }
+
+        await writeScope(address, scope);
+        return { imported, skipped, overwritten };
+      },
+    };
+  };
+
   return {
-    setContractAddress(address: ContractAddress): void {
-      contractAddress = address;
-    },
+    forContract,
 
-    async set(key: PSI, state: PS): Promise<void> {
-      const address = requireContractAddress();
-      const scope = await readScope(address);
-      scope[key] = state;
-      await writeScope(address, scope);
-    },
-
-    async get(key: PSI): Promise<PS | null> {
-      const scope = await readScope(requireContractAddress());
-      return (scope[key] as PS | undefined) ?? null;
-    },
-
-    async remove(key: PSI): Promise<void> {
-      const address = requireContractAddress();
-      const scope = await readScope(address);
-      delete scope[key];
-      await writeScope(address, scope);
-    },
-
-    clear(): Promise<void> {
-      return store.remove(stateKey(requireContractAddress()));
+    clearAll(): Promise<void> {
+      // The store cannot list its keys, and wiping every registry's wallet in
+      // one call is not something Amana offers. Clear one registry instead.
+      return Promise.reject(new Error('Amana: clear the private state of one registry at a time.'));
     },
 
     async setSigningKey(address: ContractAddress, signingKey: SigningKey): Promise<void> {
       const keys = await readSigningKeys();
-      keys[address] = signingKey;
+      keys[address.toLowerCase()] = signingKey;
       await writeSigningKeys(keys);
     },
 
     async getSigningKey(address: ContractAddress): Promise<SigningKey | null> {
-      return (await readSigningKeys())[address] ?? null;
+      return (await readSigningKeys())[address.toLowerCase()] ?? null;
     },
 
     async removeSigningKey(address: ContractAddress): Promise<void> {
       const keys = await readSigningKeys();
-      delete keys[address];
+      delete keys[address.toLowerCase()];
       await writeSigningKeys(keys);
     },
 
     clearSigningKeys(): Promise<void> {
       return store.remove(SIGNING_NAMESPACE);
-    },
-
-    async exportPrivateStates(options?: ExportPrivateStatesOptions): Promise<PrivateStateExport> {
-      const password = requirePassword(options?.password, 'private state');
-      const address = requireContractAddress();
-      const scope = await readScope(address);
-      const body = encodePrivateState({
-        contractAddress: address,
-        states: Object.fromEntries(Object.entries(scope).map(([id, value]) => [id, encodePrivateState(value)])),
-      });
-      return { format: 'midnight-private-state-export', ...(await sealExport(password, STATES_LABEL, body)) };
-    },
-
-    async importPrivateStates(
-      exportData: PrivateStateExport,
-      options?: ImportPrivateStatesOptions,
-    ): Promise<ImportPrivateStatesResult> {
-      const address = requireContractAddress();
-      const conflictStrategy = options?.conflictStrategy ?? 'error';
-      const password = requirePassword(options?.password, 'private state');
-      const payload = decodePrivateState<{ states?: Record<string, string> }>(
-        await openExport(password, STATES_LABEL, exportData),
-      );
-      const incoming = payload.states ?? {};
-      const scope = await readScope(address);
-
-      let imported = 0;
-      let skipped = 0;
-      let overwritten = 0;
-
-      for (const [stateId, serialized] of Object.entries(incoming)) {
-        const exists = Object.prototype.hasOwnProperty.call(scope, stateId);
-        if (exists) {
-          if (conflictStrategy === 'skip') {
-            skipped += 1;
-            continue;
-          }
-          if (conflictStrategy === 'error') {
-            throw new Error(`Amana: private state conflict for '${stateId}'`);
-          }
-          overwritten += 1;
-        } else {
-          imported += 1;
-        }
-        scope[stateId] = decodePrivateState(serialized);
-      }
-
-      await writeScope(address, scope);
-      return { imported, skipped, overwritten };
     },
 
     async exportSigningKeys(options?: ExportSigningKeysOptions): Promise<SigningKeyExport> {

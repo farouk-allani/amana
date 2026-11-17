@@ -3,7 +3,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 const cwd = fileURLToPath(new URL('../contract/', import.meta.url));
-const args = ['compile', '+0.31.1', ...process.argv.slice(2), 'src/amana.compact', './src/managed/amana'];
+const args = ['compile', '+0.36.1', ...process.argv.slice(2), 'src/amana.compact', './src/managed/amana'];
 let command = 'compact', commandArgs = args;
 if (process.platform === 'win32') {
   // Windows compact.exe compresses files. Invoke the WSL compiler without a shell.

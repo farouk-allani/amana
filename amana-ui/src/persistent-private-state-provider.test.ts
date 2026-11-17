@@ -10,7 +10,7 @@ import { LockedError, Vault } from './vault/vault.js';
 
 const FAST = 1_000;
 const PASS = 'correct horse battery staple';
-const ADDRESS = '0200' + 'ab'.repeat(32);
+const ADDRESS = 'ab'.repeat(32);
 const SECRET = Uint8Array.from({ length: 32 }, (_, i) => 200 - i);
 const SECRET_HEX = Array.from(SECRET, (b) => b.toString(16).padStart(2, '0')).join('');
 
@@ -20,9 +20,8 @@ const setup = async () => {
   const storage = new MemoryStorage();
   const vault = new Vault(storage, FAST);
   await vault.create(PASS);
-  const provider = persistentPrivateStateProvider<'amanaPrivateStateV2', State>(vault);
-  provider.setContractAddress(ADDRESS as never);
-  return { storage, vault, provider };
+  const root = persistentPrivateStateProvider<'amanaPrivateStateV2', State>(vault);
+  return { storage, vault, root, provider: root.forContract(ADDRESS) };
 };
 
 describe('persistentPrivateStateProvider on the vault', () => {
@@ -35,9 +34,9 @@ describe('persistentPrivateStateProvider on the vault', () => {
   });
 
   it('stores neither the identity key nor the records in clear', async () => {
-    const { storage, provider } = await setup();
+    const { storage, root, provider } = await setup();
     await provider.set('amanaPrivateStateV2', { secretKey: SECRET, wallet: [{ onTime: 12345n }] });
-    await provider.setSigningKey(ADDRESS as never, 'signing-' + SECRET_HEX);
+    await root.setSigningKey(ADDRESS, { tag: 'bip340', value: 'signing-' + SECRET_HEX } as never);
     const everything = storage.dump();
     expect(everything).not.toContain(SECRET_HEX);
     expect(everything).not.toContain('12345');
@@ -50,8 +49,7 @@ describe('persistentPrivateStateProvider on the vault', () => {
     await provider.set('amanaPrivateStateV2', { secretKey: SECRET, wallet: [] });
     const reopened = new Vault(storage, FAST);
     await reopened.unlock(PASS);
-    const again = persistentPrivateStateProvider<'amanaPrivateStateV2', State>(reopened);
-    again.setContractAddress(ADDRESS as never);
+    const again = persistentPrivateStateProvider<'amanaPrivateStateV2', State>(reopened).forContract(ADDRESS);
     expect((await again.get('amanaPrivateStateV2'))?.secretKey).toEqual(SECRET);
   });
 
@@ -63,11 +61,11 @@ describe('persistentPrivateStateProvider on the vault', () => {
   });
 
   it('refuses to export private state in clear, or under a short password', async () => {
-    const { provider } = await setup();
+    const { root, provider } = await setup();
     await provider.set('amanaPrivateStateV2', { secretKey: SECRET, wallet: [] });
     await expect(provider.exportPrivateStates()).rejects.toThrow(/plaintext export is disabled/);
     await expect(provider.exportPrivateStates({ password: 'too short' })).rejects.toThrow(/at least 16/);
-    await expect(provider.exportSigningKeys()).rejects.toThrow(/plaintext export is disabled/);
+    await expect(root.exportSigningKeys()).rejects.toThrow(/plaintext export is disabled/);
   });
 
   it('exports encrypted in the SDK’s shape, and imports only with the password', async () => {
@@ -88,10 +86,18 @@ describe('persistentPrivateStateProvider on the vault', () => {
   });
 
   it('keeps signing keys per contract and clears them', async () => {
-    const { provider } = await setup();
-    await provider.setSigningKey(ADDRESS as never, 'key-a');
-    expect(await provider.getSigningKey(ADDRESS as never)).toBe('key-a');
-    await provider.clearSigningKeys();
-    expect(await provider.getSigningKey(ADDRESS as never)).toBeNull();
+    const { root } = await setup();
+    const key = { tag: 'bip340', value: 'key-a' } as never;
+    await root.setSigningKey(ADDRESS, key);
+    expect(await root.getSigningKey(ADDRESS)).toEqual(key);
+    await root.clearSigningKeys();
+    expect(await root.getSigningKey(ADDRESS)).toBeNull();
+  });
+
+  it('reaches the same states whatever the case of the address', async () => {
+    const { root, provider } = await setup();
+    await provider.set('amanaPrivateStateV2', { secretKey: SECRET, wallet: [] });
+    expect((await root.forContract(ADDRESS.toUpperCase()).get('amanaPrivateStateV2'))?.secretKey).toEqual(SECRET);
+    expect(() => root.forContract('not an address')).toThrow();
   });
 });

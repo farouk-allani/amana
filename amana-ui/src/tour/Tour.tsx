@@ -95,10 +95,10 @@ export const Tour: React.FC<{ networkId: string; onExit: () => void }> = ({ netw
   useEffect(() => {
     if (opened.current) return;
     opened.current = true;
-    void nextPaint().then(() => {
+    void nextPaint().then(async () => {
       try {
         const started = performance.now();
-        setStory(openStory());
+        setStory(await openStory());
         setSetupMs(performance.now() - started);
       } catch (e) {
         setFailed(e);
@@ -118,7 +118,7 @@ export const Tour: React.FC<{ networkId: string; onExit: () => void }> = ({ netw
     setBusy('ask');
     await nextPaint();
     try {
-      setCheckId(askQuestion(story, bar));
+      setCheckId(await askQuestion(story, bar));
       setAsked(bar);
       setAnswer(null);
       bump();
@@ -134,7 +134,7 @@ export const Tour: React.FC<{ networkId: string; onExit: () => void }> = ({ netw
     setBusy('answer');
     await nextPaint();
     try {
-      setAnswer(answerQuestion(story, checkId));
+      setAnswer(await answerQuestion(story, checkId));
       bump();
       requestAnimationFrame(() => answerRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
     } catch (e) {
@@ -156,7 +156,7 @@ export const Tour: React.FC<{ networkId: string; onExit: () => void }> = ({ netw
     await nextPaint();
     try {
       const results: Record<string, Outcome> = {};
-      for (const c of which) results[c.id] = tryCheat(story, c);
+      for (const c of which) results[c.id] = await tryCheat(story, c);
       setCheats((prev) => ({ ...prev, ...results }));
     } catch (e) {
       setFailed(e);

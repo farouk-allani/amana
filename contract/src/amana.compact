@@ -12,10 +12,9 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
-// Compiles under language 0.23 (compiler 0.31.x), which the public networks
-// accept while they run ledger 8, and under 0.27 (compiler 0.35.x, ledger 9).
-// The 0.31.1 build is byte-identical to the one with an exact 0.23 pragma.
-pragma language_version >= 0.23 && <= 0.27;
+// Language 0.28 is compiler 0.36.x, which targets ledger 9: what mainnet,
+// Preprod and preview run since 6–9 November 2026.
+pragma language_version 0.28;
 
 import CompactStandardLibrary;
 

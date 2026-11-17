@@ -22,11 +22,12 @@
  */
 
 import {
-  CostModel,
-  QueryContext,
+  createCircuitContext,
   createConstructorContext,
   sampleContractAddress,
+  type ChargedState,
   type CircuitContext,
+  type CircuitResults,
 } from '@midnight-ntwrk/compact-runtime';
 
 import {
@@ -53,7 +54,9 @@ import * as utils from '../../../api/src/utils/index.js';
 type Circuits = ImpureCircuits<AmanaPrivateState>;
 export type CircuitName = keyof Circuits;
 type Args<K extends CircuitName> = Circuits[K] extends (context: never, ...args: infer A) => unknown ? A : never;
-type Result<K extends CircuitName> = ReturnType<Circuits[K]>['result'];
+type Result<K extends CircuitName> = Awaited<ReturnType<Circuits[K]>>['result'];
+
+const COIN_KEY = '0'.repeat(64);
 
 /** A circuit refused to run to the end: one of the contract's asserts failed. */
 export class Refusal extends Error {
@@ -99,7 +102,7 @@ export type PublicLedger = {
 
 export class LocalRegistry {
   private readonly contract = new Contract<AmanaPrivateState>(witnesses);
-  private context: CircuitContext<AmanaPrivateState>;
+  private state: ChargedState;
   private devices: Map<string, AmanaPrivateState>;
   /** Checks in the order they were created, since a ledger map has no order. */
   private checkIds: string[];
@@ -109,37 +112,30 @@ export class LocalRegistry {
   /** A stand-in address: this registry exists only in this page's memory. */
   readonly address: string;
 
-  private constructor(from?: LocalRegistry, operator = 'operator') {
-    if (from) {
-      // Ledger states are persistent values: a circuit returns a new context
-      // and leaves the one it was given untouched, so a copy shares it safely.
-      this.context = from.context;
-      this.devices = new Map(from.devices);
-      this.checkIds = [...from.checkIds];
-      this.calls = from.calls;
-      this.address = from.address;
-      return;
-    }
-    const initial = createAmanaPrivateState(utils.randomBytes(32));
-    const { currentPrivateState, currentContractState, currentZswapLocalState } = this.contract.initialState(
-      createConstructorContext(initial, '0'.repeat(64)),
-      pureCircuits.lenderKey(initial.secretKey),
-    );
-    this.address = sampleContractAddress();
-    this.context = {
-      currentPrivateState,
-      currentZswapLocalState,
-      costModel: CostModel.initialCostModel(),
-      currentQueryContext: new QueryContext(currentContractState.data, this.address),
-    };
-    this.devices = new Map([[operator, currentPrivateState]]);
-    this.checkIds = [];
-    this.calls = 0;
+  private constructor(
+    state: ChargedState,
+    devices: Map<string, AmanaPrivateState>,
+    checkIds: string[],
+    calls: number,
+    address: string,
+  ) {
+    this.state = state;
+    this.devices = devices;
+    this.checkIds = checkIds;
+    this.calls = calls;
+    this.address = address;
   }
 
   /** A new registry whose deployment key belongs to `operator`. */
-  static deploy(operator = 'operator'): LocalRegistry {
-    return new LocalRegistry(undefined, operator);
+  static async deploy(operator = 'operator'): Promise<LocalRegistry> {
+    const contract = new Contract<AmanaPrivateState>(witnesses);
+    const initial = createAmanaPrivateState(utils.randomBytes(32));
+    const { currentPrivateState, currentContractState } = await contract.initialState(
+      createConstructorContext(initial, COIN_KEY),
+      pureCircuits.lenderKey(initial.secretKey),
+    );
+    return new LocalRegistry(currentContractState.data, new Map([[operator, currentPrivateState]]), [], 0,
+      sampleContractAddress());
   }
 
   /**
@@ -147,9 +143,11 @@ export class LocalRegistry {
    *
    * What happens on the copy never reaches the original, which is how an
    * attempt to cheat can be run for real without spoiling the honest run.
+   * Ledger states are persistent values: a circuit returns a new state and
+   * leaves the one it ran against untouched, so a copy shares it safely.
    */
   fork(): LocalRegistry {
-    return new LocalRegistry(this);
+    return new LocalRegistry(this.state, new Map(this.devices), [...this.checkIds], this.calls, this.address);
   }
 
   // --- devices ---------------------------------------------------------------
@@ -185,25 +183,32 @@ export class LocalRegistry {
    * move forward; on a failed assert nothing changes and a {@link Refusal}
    * carries the contract's message.
    */
-  call<K extends CircuitName>(actor: string, circuit: K, ...args: Args<K>): Result<K> {
-    const run = this.contract.impureCircuits[circuit] as (
+  async call<K extends CircuitName>(actor: string, circuit: K, ...args: Args<K>): Promise<Result<K>> {
+    const run = this.contract.impureCircuits[circuit] as unknown as (
       context: CircuitContext<AmanaPrivateState>,
       ...rest: unknown[]
-    ) => { context: CircuitContext<AmanaPrivateState>; result: Result<K> };
+    ) => Promise<CircuitResults<AmanaPrivateState, Result<K>>>;
+    const context = createCircuitContext({
+      circuitId: circuit,
+      contractAddress: this.address,
+      coinPublicKeyOrZswapState: COIN_KEY,
+      contractState: this.state,
+      privateState: this.device(actor),
+    });
     let out;
     try {
-      out = run({ ...this.context, currentPrivateState: this.device(actor) }, ...args);
+      out = await run(context, ...args);
     } catch (e) {
       throw new Refusal(circuit, reasonOf(e));
     }
-    this.context = out.context;
-    this.devices.set(actor, out.context.currentPrivateState);
+    this.state = out.context.callContext.currentQueryContext.state;
+    this.devices.set(actor, out.context.callContext.currentPrivateState ?? this.device(actor));
     this.calls += 1;
     return out.result;
   }
 
   ledger(): Ledger {
-    return ledger(this.context.currentQueryContext.state);
+    return ledger(this.state);
   }
 
   // --- the operations a participant performs ---------------------------------
@@ -215,7 +220,7 @@ export class LocalRegistry {
    * alone. The lender's circuit publishes one commitment and returns the leaf
    * it was written to; the record itself goes to the borrower off chain.
    */
-  issue(lender: string, borrower: string, counts: RecordCounts, lenderName: string): StoredAttestation {
+  async issue(lender: string, borrower: string, counts: RecordCounts, lenderName: string): Promise<StoredAttestation> {
     const attestation: Attestation = {
       lender: this.lenderKey(lender),
       subject: this.subjectId(borrower, lender),
@@ -225,7 +230,7 @@ export class LocalRegistry {
     this.setDevice(lender, (ps) => ({ ...ps, pending: attestation }));
     let leafIndex: bigint;
     try {
-      leafIndex = this.call(lender, 'issueAttestation');
+      leafIndex = await this.call(lender, 'issueAttestation');
     } finally {
       this.setDevice(lender, (ps) => ({ ...ps, pending: null }));
     }
@@ -235,12 +240,12 @@ export class LocalRegistry {
   }
 
   /** `verifier` commits a question for `borrower` to answer. Returns its id. */
-  ask(verifier: string, borrower: string, minOnTime: bigint, minPeriod: bigint, maxPeriod: bigint): string {
+  async ask(verifier: string, borrower: string, minOnTime: bigint, minPeriod: bigint, maxPeriod: bigint): Promise<string> {
     const key = pureCircuits.verifierKey(this.device(verifier).secretKey);
     const nonce = utils.randomBytes(32);
     const id = pureCircuits.requestId(key, nonce);
     const recipient = pureCircuits.checkRecipient(this.device(borrower).secretKey, id);
-    this.call(verifier, 'createCheck', id, nonce, recipient, minOnTime, minPeriod, maxPeriod);
+    await this.call(verifier, 'createCheck', id, nonce, recipient, minOnTime, minPeriod, maxPeriod);
     const checkId = utils.bytesToHex(id);
     this.checkIds.push(checkId);
     return checkId;
@@ -253,7 +258,7 @@ export class LocalRegistry {
    * chosen the way the application chooses them, unless `presenting` names
    * leaves outright, which is how a dishonest borrower is modelled.
    */
-  answer(borrower: string, checkId: string, presenting?: readonly bigint[]): void {
+  async answer(borrower: string, checkId: string, presenting?: readonly bigint[]): Promise<void> {
     const led = this.ledger();
     const id = utils.keyBytes(checkId);
     const chosen =
@@ -267,7 +272,7 @@ export class LocalRegistry {
         : []);
     this.setDevice(borrower, (ps) => ({ ...ps, presenting: chosen }));
     try {
-      this.call(borrower, 'proveCreditStanding', id);
+      await this.call(borrower, 'proveCreditStanding', id);
     } finally {
       this.setDevice(borrower, (ps) => ({ ...ps, presenting: [] }));
     }

@@ -11,17 +11,13 @@
 import { ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
 import { FetchZkConfigProvider } from '@midnight-ntwrk/midnight-js-fetch-zk-config-provider';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
-import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
-import { fromHex, toHex } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
 import {
-  Binding,
-  FinalizedTransaction,
-  Proof,
-  SignatureEnabled,
-  Transaction,
-  TransactionId,
-} from '@midnight-ntwrk/midnight-js-protocol/ledger';
-import type { UnboundTransaction } from '@midnight-ntwrk/midnight-js-types';
+  indexerPublicDataProvider,
+  type IndexerProviderConfig,
+} from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
+import { fromHex, toHex } from '@midnight-ntwrk/midnight-js-protocol/v9/compact-runtime';
+import { Transaction, type TransactionId } from '@midnight-ntwrk/midnight-js-protocol/v9';
+import { createLedger9MidnightProvider, createLedger9WalletProvider } from '@midnight-ntwrk/midnight-js-types';
 import type { Logger } from 'pino';
 
 import type { AmanaCircuitKeys, AmanaProviders, PrivateStateId } from '../../api/src/common-types.js';
@@ -29,6 +25,9 @@ import type { AmanaPrivateState } from '../../contract/src/index.js';
 import { persistentPrivateStateProvider, type PrivateStore } from './persistent-private-state-provider.js';
 import { withStageReporting } from './stage-reporting.js';
 import { findWallet } from './wallet.js';
+
+/** How long a built transaction stays valid: long enough for a slow local proof. */
+const TX_TTL_SECONDS = 30 * 60;
 
 export class WalletMissingError extends Error {
   constructor() {
@@ -78,10 +77,9 @@ export const initialiseProviders = async (
 
   // Proving and verifying key material is served from this app's own origin;
   // `npm run build` copies it out of the contract workspace into `public/`.
-  const zkConfigProvider = new FetchZkConfigProvider<AmanaCircuitKeys>(
-    window.location.origin,
-    fetch.bind(window),
-  );
+  const zkConfigProvider = new FetchZkConfigProvider<AmanaCircuitKeys>(window.location.origin, {
+    fetchFunc: fetch.bind(window),
+  });
 
   if (!config.proverServerUri) {
     throw new Error(
@@ -94,30 +92,25 @@ export const initialiseProviders = async (
     // The unlocked vault: private state is sealed before it reaches storage.
     privateStateProvider: persistentPrivateStateProvider<PrivateStateId, AmanaPrivateState>(store),
     zkConfigProvider,
-    proofProvider: httpClientProofProvider(config.proverServerUri, zkConfigProvider),
-    publicDataProvider: indexerPublicDataProvider(config.indexerUri, config.indexerWsUri,
-      // SDK's Node default uses ws.WebSocket; select the native browser transport explicitly.
-      globalThis.WebSocket as unknown as NonNullable<Parameters<typeof indexerPublicDataProvider>[2]>),
-    walletProvider: {
+    proofProvider: httpClientProofProvider({ url: config.proverServerUri, zkConfigProvider }),
+    publicDataProvider: indexerPublicDataProvider({
+      queryURL: config.indexerUri,
+      subscriptionURL: config.indexerWsUri,
+      // The SDK's Node default is ws.WebSocket; select the browser's own transport.
+      webSocket: globalThis.WebSocket as unknown as NonNullable<IndexerProviderConfig['webSocket']>,
+    }),
+    // The wallet runs its own copy of the ledger, so transactions cross as bytes.
+    walletProvider: createLedger9WalletProvider({
       getCoinPublicKey: () => shielded.shieldedCoinPublicKey,
       getEncryptionPublicKey: () => shielded.shieldedEncryptionPublicKey,
-      balanceTx: async (tx: UnboundTransaction): Promise<FinalizedTransaction> => {
-        const balanced = await wallet.balanceUnsealedTransaction(toHex(tx.serialize()));
-        return Transaction.deserialize<SignatureEnabled, Proof, Binding>(
-          'signature',
-          'proof',
-          'binding',
-          fromHex(balanced.tx),
-        );
-      },
-    },
-    midnightProvider: {
-      submitTx: async (tx: FinalizedTransaction): Promise<TransactionId> => {
-        await wallet.submitTransaction(toHex(tx.serialize()));
-        const [txId] = tx.identifiers();
-        logger?.info({ submitted: txId });
-        return txId as TransactionId;
-      },
-    },
+      balanceTx: async (tx) => fromHex((await wallet.balanceUnsealedTransaction(toHex(tx.serialize()))).tx),
+    }),
+    midnightProvider: createLedger9MidnightProvider(async (tx) => {
+      await wallet.submitTransaction(toHex(tx.serialize()));
+      const [txId] = tx.deserialize({ v9: Transaction }).identifiers();
+      logger?.info({ submitted: txId });
+      return txId as TransactionId;
+    }),
+    config: { networkId, ttlSeconds: TX_TTL_SECONDS },
   });
 };

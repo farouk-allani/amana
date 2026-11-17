@@ -14,15 +14,18 @@
  */
 
 import {
+  type ChargedState,
   type CircuitContext,
-  QueryContext,
-  sampleContractAddress,
+  type CircuitResults,
+  type ProofData,
+  createCircuitContext,
   createConstructorContext,
-  CostModel,
+  sampleContractAddress,
 } from '@midnight-ntwrk/compact-runtime';
 import {
   Contract,
   type Attestation,
+  type ImpureCircuits,
   type Ledger,
   ledger,
   pureCircuits,
@@ -45,33 +48,50 @@ export type RepaymentRecord = {
   periodEnd: bigint;
 };
 
+type Circuit = keyof ImpureCircuits<AmanaPrivateState>;
+type ArgsOf<K extends Circuit> = ImpureCircuits<AmanaPrivateState>[K] extends (
+  ctx: CircuitContext<AmanaPrivateState>,
+  ...rest: infer A
+) => unknown
+  ? A
+  : never;
+
+const COIN_KEY = '0'.repeat(64);
+
 export class AmanaSimulator {
   readonly contract: Contract<AmanaPrivateState>;
-  circuitContext: CircuitContext<AmanaPrivateState>;
+  readonly address = sampleContractAddress();
+  /** The registry's public state, as the chain would hold it. */
+  state: ChargedState;
+  /** The active participant's private state. */
+  privateState: AmanaPrivateState;
 
   /** One private state per participant, keyed by a test-friendly name. */
   private readonly devices = new Map<string, AmanaPrivateState>();
   private active: string;
 
-  constructor(initialActor = 'authority') {
-    this.contract = new Contract<AmanaPrivateState>(witnesses);
-    this.active = initialActor;
+  private constructor(
+    contract: Contract<AmanaPrivateState>,
+    state: ChargedState,
+    actor: string,
+    privateState: AmanaPrivateState,
+  ) {
+    this.contract = contract;
+    this.state = state;
+    this.active = actor;
+    this.privateState = privateState;
+    this.devices.set(actor, privateState);
+  }
 
+  /** Deploy a fresh registry with `initialActor` as its committed authority. */
+  static async create(initialActor = 'authority'): Promise<AmanaSimulator> {
+    const contract = new Contract<AmanaPrivateState>(witnesses);
     const initial = createAmanaPrivateState(deriveKey(initialActor));
-    this.devices.set(initialActor, initial);
-
-    const { currentPrivateState, currentContractState, currentZswapLocalState } =
-      this.contract.initialState(createConstructorContext(initial, '0'.repeat(64)), pureCircuits.lenderKey(initial.secretKey));
-
-    this.circuitContext = {
-      currentPrivateState,
-      currentZswapLocalState,
-      costModel: CostModel.initialCostModel(),
-      currentQueryContext: new QueryContext(
-        currentContractState.data,
-        sampleContractAddress(),
-      ),
-    };
+    const { currentPrivateState, currentContractState } = await contract.initialState(
+      createConstructorContext(initial, COIN_KEY),
+      pureCircuits.lenderKey(initial.secretKey),
+    );
+    return new AmanaSimulator(contract, currentContractState.data, initialActor, currentPrivateState);
   }
 
   // --- participants --------------------------------------------------------
@@ -88,17 +108,17 @@ export class AmanaSimulator {
       this.devices.set(name, createAmanaPrivateState(deriveKey(name)));
     }
     this.active = name;
-    this.circuitContext.currentPrivateState = this.devices.get(name)!;
+    this.privateState = this.devices.get(name)!;
     return this;
   }
 
   /** Persist the active device's state back into its slot. */
   private save(): void {
-    this.devices.set(this.active, this.circuitContext.currentPrivateState);
+    this.devices.set(this.active, this.privateState);
   }
 
   private mutate(f: (ps: AmanaPrivateState) => AmanaPrivateState): void {
-    this.circuitContext.currentPrivateState = f(this.circuitContext.currentPrivateState);
+    this.privateState = f(this.privateState);
   }
 
   /** The secret key of a participant. */
@@ -131,55 +151,75 @@ export class AmanaSimulator {
   // --- state ---------------------------------------------------------------
 
   getLedger(): Ledger {
-    return ledger(this.circuitContext.currentQueryContext.state);
+    return ledger(this.state);
   }
 
   getPrivateState(): AmanaPrivateState {
-    return this.circuitContext.currentPrivateState;
+    return this.privateState;
+  }
+
+  /** A fresh context for one call, against the current ledger and device. */
+  contextFor(circuitId: Circuit, privateState = this.privateState): CircuitContext<AmanaPrivateState> {
+    return createCircuitContext({
+      circuitId,
+      contractAddress: this.address,
+      coinPublicKeyOrZswapState: COIN_KEY,
+      contractState: this.state,
+      privateState,
+    });
+  }
+
+  /**
+   * Run one circuit as the active participant and adopt its outcome. A
+   * refused call throws and leaves both the ledger and the device untouched.
+   */
+  async run<K extends Circuit>(
+    circuit: K,
+    ...args: ArgsOf<K>
+  ): Promise<CircuitResults<AmanaPrivateState, unknown> & { proofData: ProofData }> {
+    return this.runWith(this.contract, circuit, ...args);
+  }
+
+  private async runWith<K extends Circuit>(
+    contract: Contract<AmanaPrivateState>,
+    circuit: K,
+    ...args: ArgsOf<K>
+  ): Promise<CircuitResults<AmanaPrivateState, unknown> & { proofData: ProofData }> {
+    const fn = contract.impureCircuits[circuit] as unknown as (
+      ctx: CircuitContext<AmanaPrivateState>,
+      ...rest: unknown[]
+    ) => Promise<CircuitResults<AmanaPrivateState, unknown>>;
+    const results = await fn(this.contextFor(circuit), ...args);
+    this.state = results.context.callContext.currentQueryContext.state;
+    this.privateState = results.context.callContext.currentPrivateState ?? this.privateState;
+    this.save();
+    return { ...results, proofData: results.context.callProofDataTrace.at(-1)! };
   }
 
   // --- circuits ------------------------------------------------------------
 
-  claimAuthority(): Ledger {
-    this.circuitContext = this.contract.impureCircuits.claimAuthority(
-      this.circuitContext,
-    ).context;
-    this.save();
+  async claimAuthority(): Promise<Ledger> {
+    await this.run('claimAuthority');
     return this.getLedger();
   }
 
-  registerLender(lenderPublicKey: Uint8Array): Ledger {
-    this.circuitContext = this.contract.impureCircuits.registerLender(
-      this.circuitContext,
-      lenderPublicKey,
-    ).context;
-    this.save();
+  async registerLender(lenderPublicKey: Uint8Array): Promise<Ledger> {
+    await this.run('registerLender', lenderPublicKey);
     return this.getLedger();
   }
 
-  proposeAuthority(newAuthority: Uint8Array): Ledger {
-    this.circuitContext = this.contract.impureCircuits.proposeAuthority(
-      this.circuitContext,
-      newAuthority,
-    ).context;
-    this.save();
+  async proposeAuthority(newAuthority: Uint8Array): Promise<Ledger> {
+    await this.run('proposeAuthority', newAuthority);
     return this.getLedger();
   }
 
-  acceptAuthority(): Ledger {
-    this.circuitContext = this.contract.impureCircuits.acceptAuthority(
-      this.circuitContext,
-    ).context;
-    this.save();
+  async acceptAuthority(): Promise<Ledger> {
+    await this.run('acceptAuthority');
     return this.getLedger();
   }
 
-  removeLender(lenderPublicKey: Uint8Array): Ledger {
-    this.circuitContext = this.contract.impureCircuits.removeLender(
-      this.circuitContext,
-      lenderPublicKey,
-    ).context;
-    this.save();
+  async removeLender(lenderPublicKey: Uint8Array): Promise<Ledger> {
+    await this.run('removeLender', lenderPublicKey);
     return this.getLedger();
   }
 
@@ -190,7 +230,7 @@ export class AmanaSimulator {
    * lender their per-lender pseudonym, the lender writes a commitment to the
    * chain, and hands the borrower back the record and its leaf index.
    */
-  issueTo(borrower: string, record: RepaymentRecord, nonce?: Uint8Array): Attestation {
+  async issueTo(borrower: string, record: RepaymentRecord, nonce?: Uint8Array): Promise<Attestation> {
     const lenderName = this.active;
     const attestation: Attestation = {
       lender: this.lenderKeyOf(lenderName),
@@ -203,15 +243,7 @@ export class AmanaSimulator {
     };
 
     const leafIndex = this.getLedger().nextLeaf;
-
-    this.as(lenderName);
-    this.mutate((ps) => ({ ...ps, pending: attestation }));
-    this.circuitContext = this.contract.impureCircuits.issueAttestation(
-      this.circuitContext,
-    ).context;
-    this.mutate((ps) => ({ ...ps, pending: null }));
-    this.save();
-
+    await this.issueRaw(attestation);
     this.deliver(borrower, attestation, leafIndex, lenderName);
     return attestation;
   }
@@ -224,11 +256,15 @@ export class AmanaSimulator {
    * naming somebody else as the issuer, say. An honest client builds the
    * record from its own key and could not produce such a thing.
    */
-  issueRaw(attestation: Attestation): Ledger {
+  async issueRaw(attestation: Attestation): Promise<Ledger> {
+    const before = this.privateState;
     this.mutate((ps) => ({ ...ps, pending: attestation }));
-    this.circuitContext = this.contract.impureCircuits.issueAttestation(
-      this.circuitContext,
-    ).context;
+    try {
+      await this.run('issueAttestation');
+    } catch (e) {
+      this.privateState = before;
+      throw e;
+    }
     this.mutate((ps) => ({ ...ps, pending: null }));
     this.save();
     return this.getLedger();
@@ -240,12 +276,7 @@ export class AmanaSimulator {
    * Used by tests that need a borrower to hold something they should not be
    * able to prove — a forged record, or one belonging to somebody else.
    */
-  deliver(
-    borrower: string,
-    attestation: Attestation,
-    leafIndex: bigint,
-    lenderName = 'unknown',
-  ): void {
+  deliver(borrower: string, attestation: Attestation, leafIndex: bigint, lenderName = 'unknown'): void {
     const here = this.active;
     this.as(borrower);
     this.mutate((ps) => ({
@@ -256,21 +287,13 @@ export class AmanaSimulator {
     this.as(here);
   }
 
-  revokeAttestation(index: bigint): Ledger {
-    this.circuitContext = this.contract.impureCircuits.revokeAttestation(
-      this.circuitContext,
-      index,
-    ).context;
-    this.save();
+  async revokeAttestation(index: bigint): Promise<Ledger> {
+    await this.run('revokeAttestation', index);
     return this.getLedger();
   }
 
-  revokeOrphanedAttestation(index: bigint): Ledger {
-    this.circuitContext = this.contract.impureCircuits.revokeOrphanedAttestation(
-      this.circuitContext,
-      index,
-    ).context;
-    this.save();
+  async revokeOrphanedAttestation(index: bigint): Promise<Ledger> {
+    await this.run('revokeOrphanedAttestation', index);
     return this.getLedger();
   }
 
@@ -281,25 +304,46 @@ export class AmanaSimulator {
    * production API does it — the circuit cannot see the verifier's thresholds
    * from inside a witness.
    */
-  createCheck(nonce: Uint8Array, borrower: string, minOnTime: bigint, minPeriod: bigint, maxPeriod: bigint): Uint8Array {
+  async createCheck(
+    nonce: Uint8Array,
+    borrower: string,
+    minOnTime: bigint,
+    minPeriod: bigint,
+    maxPeriod: bigint,
+  ): Promise<Uint8Array> {
     const key = pureCircuits.verifierKey(this.getPrivateState().secretKey);
     const id = pureCircuits.requestId(key, nonce);
     const recipient = pureCircuits.checkRecipient(this.secretKeyOf(borrower), id);
-    this.createCheckRaw(id, nonce, recipient, minOnTime, minPeriod, maxPeriod);
+    await this.createCheckRaw(id, nonce, recipient, minOnTime, minPeriod, maxPeriod);
     return id;
   }
 
-  createCheckRaw(id: Uint8Array, nonce: Uint8Array, recipient: Uint8Array, minOnTime: bigint, minPeriod: bigint, maxPeriod: bigint): Ledger {
-    this.circuitContext = this.contract.impureCircuits.createCheck(this.circuitContext, id, nonce, recipient, minOnTime, minPeriod, maxPeriod).context;
-    this.save();
+  async createCheckRaw(
+    id: Uint8Array,
+    nonce: Uint8Array,
+    recipient: Uint8Array,
+    minOnTime: bigint,
+    minPeriod: bigint,
+    maxPeriod: bigint,
+  ): Promise<Ledger> {
+    await this.run('createCheck', id, nonce, recipient, minOnTime, minPeriod, maxPeriod);
     return this.getLedger();
   }
 
-  proveCreditStanding(checkId: Uint8Array): Ledger {
+  async proveCreditStanding(checkId: Uint8Array): Promise<Ledger> {
     const led = this.getLedger();
     const terms = led.requestedChecks.member(checkId) ? led.requestedChecks.lookup(checkId) : null;
-    this.mutate((ps) => ({ ...ps, presenting: terms ? selectAttestations(
-      ps.wallet.filter((s) => isLiveAttestation(led, s)), terms.minOnTime, terms.minPeriod, terms.maxPeriod) : [] }));
+    this.mutate((ps) => ({
+      ...ps,
+      presenting: terms
+        ? selectAttestations(
+            ps.wallet.filter((s) => isLiveAttestation(led, s)),
+            terms.minOnTime,
+            terms.minPeriod,
+            terms.maxPeriod,
+          )
+        : [],
+    }));
     return this.proveWithSelection(checkId, [...this.getPrivateState().presenting]);
   }
 
@@ -308,26 +352,30 @@ export class AmanaSimulator {
    * ledger, as a borrower does whose proof is still in flight when the
    * registry moves on. The circuit itself runs against the current ledger.
    */
-  proveAgainst(checkId: Uint8Array, view: Ledger): Ledger {
+  async proveAgainst(checkId: Uint8Array, view: Ledger): Promise<Ledger> {
     const terms = view.requestedChecks.lookup(checkId);
-    this.mutate((ps) => ({ ...ps, presenting: selectAttestations(
-      ps.wallet.filter((s) => isLiveAttestation(view, s)), terms.minOnTime, terms.minPeriod, terms.maxPeriod) }));
+    this.mutate((ps) => ({
+      ...ps,
+      presenting: selectAttestations(
+        ps.wallet.filter((s) => isLiveAttestation(view, s)),
+        terms.minOnTime,
+        terms.minPeriod,
+        terms.maxPeriod,
+      ),
+    }));
     const stale: typeof witnesses = {
       ...witnesses,
       heldAttestations: (ctx) => witnesses.heldAttestations({ ...ctx, ledger: view }),
       heldPaths: (ctx) => witnesses.heldPaths({ ...ctx, ledger: view }),
       heldUsed: (ctx) => witnesses.heldUsed({ ...ctx, ledger: view }),
     };
-    this.circuitContext = new Contract<AmanaPrivateState>(stale).impureCircuits
-      .proveCreditStanding(this.circuitContext, checkId).context;
-    this.save();
+    await this.runWith(new Contract<AmanaPrivateState>(stale), 'proveCreditStanding', checkId);
     return this.getLedger();
   }
 
-  proveWithSelection(checkId: Uint8Array, presenting: bigint[]): Ledger {
+  async proveWithSelection(checkId: Uint8Array, presenting: bigint[]): Promise<Ledger> {
     this.mutate((ps) => ({ ...ps, presenting }));
-    this.circuitContext = this.contract.impureCircuits.proveCreditStanding(this.circuitContext, checkId).context;
-    this.save();
+    await this.run('proveCreditStanding', checkId);
     return this.getLedger();
   }
 }

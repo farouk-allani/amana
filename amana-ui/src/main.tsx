@@ -12,7 +12,6 @@ import './styles/index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import * as pino from 'pino';
-import { setNetworkId, type NetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import '@midnight-ntwrk/dapp-connector-api';
 
 import App from './App.jsx';
@@ -21,9 +20,9 @@ import App from './App.jsx';
 // refused. Valid ids: 'preview', 'preprod', 'mainnet', 'undeployed'. The old
 // 'TestNet' default named testnet-02, which has been retired — its endpoints
 // no longer resolve, so it failed with a confusing indexer error rather than a
-// clear one.
-const networkId = (import.meta.env.VITE_NETWORK_ID ?? 'preview') as NetworkId;
-setNetworkId(networkId);
+// clear one. Midnight.js 5 takes it per provider set (`providers.config`),
+// not as a global.
+const networkId: string = import.meta.env.VITE_NETWORK_ID ?? 'preview';
 
 const logger = pino.pino({
   level: (import.meta.env.VITE_LOGGING_LEVEL as string) ?? 'info',

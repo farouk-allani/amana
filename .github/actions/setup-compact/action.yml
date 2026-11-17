@@ -1,9 +1,9 @@
 name: Set up the Compact toolchain
-description: Install the pinned Compact CLI 0.5.1 and compiler 0.31.1, checksum-verified.
+description: Install the pinned Compact CLI 0.5.1 and compiler 0.36.1, checksum-verified.
 runs:
   using: composite
   steps:
-    - name: Install Compact CLI 0.5.1 and compiler 0.31.1
+    - name: Install Compact CLI 0.5.1 and compiler 0.36.1
       shell: bash
       # `compact update` lists releases through the GitHub API, which limits
       # unauthenticated calls per runner IP; the job token lifts that limit.
@@ -17,4 +17,4 @@ runs:
         tar -xf "$RUNNER_TEMP/compact.tar.xz" -C "$RUNNER_TEMP/compact-cli"
         install "$(find "$RUNNER_TEMP/compact-cli" -type f -name compact)" "$RUNNER_TEMP/amana-bin/compact"
         echo "$RUNNER_TEMP/amana-bin" >> "$GITHUB_PATH"
-        "$RUNNER_TEMP/amana-bin/compact" update 0.31.1
+        "$RUNNER_TEMP/amana-bin/compact" update 0.36.1

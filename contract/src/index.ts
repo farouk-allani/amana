@@ -8,7 +8,7 @@
  * @packageDocumentation
  */
 
-import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
+import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/v9/compact-js';
 
 import * as CompiledAmana from './managed/amana/contract/index.js';
 import * as Witnesses from './witnesses.js';

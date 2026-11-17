@@ -1,11 +1,13 @@
 // Copyright (C) 2026 the Amana authors.
 // SPDX-License-Identifier: Apache-2.0
 //
-// Wallet construction, DUST registration and the midnight-js wallet bridge are
-// adapted from midnightntwrk/example-counter (Apache-2.0), counter-cli/src/api.ts.
+// The wallet bridge follows MidnightWalletProvider in @midnight-ntwrk/testkit-js
+// 5.0.0 (Apache-2.0); wallet construction was first adapted from
+// midnightntwrk/example-counter (Apache-2.0), counter-cli/src/api.ts.
 
 /**
- * A headless Midnight wallet for the scripted evidence run.
+ * A headless Midnight wallet for the scripted evidence run, on ledger 9
+ * (wallet SDK 2).
  *
  * One funded test wallet pays every fee in the run. The Amana participants
  * (operator, institutions, borrower, verifier) are separate private states,
@@ -18,14 +20,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { WebSocket } from 'ws';
 import * as Rx from 'rxjs';
-import * as ledger from '@midnight-ntwrk/ledger-v8';
-import { getNetworkId, setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
-import { InMemoryTransactionHistoryStorage } from '@midnight-ntwrk/wallet-sdk-abstractions';
-import { WalletFacade, WalletEntrySchema, mergeWalletEntries } from '@midnight-ntwrk/wallet-sdk-facade';
-import { DustWallet } from '@midnight-ntwrk/wallet-sdk-dust-wallet';
-import { HDWallet, Roles, generateRandomSeed } from '@midnight-ntwrk/wallet-sdk-hd';
-import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
-import { createKeystore, PublicKey, UnshieldedWallet } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
+import { Either } from 'effect';
+import {
+  DefaultForkSchedule, DustWallet, InMemoryTransactionHistoryStorage, NetworkId, ProtocolVersion, PublicKey,
+  ShieldedWallet, UnshieldedWallet, WalletEntrySchema, WalletFacade, WalletSeeds, WalletTransaction,
+  createKeystore, generateRandomSeed, mergeWalletEntries,
+} from '@midnight-ntwrk/wallet-sdk';
+import * as WalletLedger from '@midnight-ntwrk/wallet-sdk/ledger/v9';
+import { unshieldedToken } from '@midnight-ntwrk/midnight-js-protocol/v9';
+import { createLedger9MidnightProvider, createLedger9WalletProvider } from '@midnight-ntwrk/midnight-js-types';
 
 // The wallet SDK's GraphQL subscriptions expect the `ws` implementation.
 globalThis.WebSocket = WebSocket;
@@ -33,25 +36,29 @@ globalThis.WebSocket = WebSocket;
 export const networks = {
   preview: {
     networkId: 'preview',
-    indexer: 'https://indexer.preview.midnight.network/api/v3/graphql',
-    indexerWS: 'wss://indexer.preview.midnight.network/api/v3/graphql/ws',
-    node: 'https://rpc.preview.midnight.network',
+    walletNetworkId: NetworkId.NetworkId.Preview,
+    indexer: 'https://indexer.preview.midnight.network/api/v4/graphql',
+    indexerWS: 'wss://indexer.preview.midnight.network/api/v4/graphql/ws',
+    node: 'wss://rpc.preview.midnight.network',
     proofServer: process.env.AMANA_PROOF_SERVER ?? 'http://127.0.0.1:6300',
-    faucet: 'https://midnight-tmnight-preview.nethermind.dev/',
+    faucet: 'https://faucet.preview.midnight.network/',
     explorer: 'https://preview.midnightexplorer.com',
   },
-  // Preprod's indexer and node are hosted by Blockfrost. The project id is a
-  // credential, so it comes from the environment and `publicIndexer` is the
-  // form recorded in the published evidence.
+  // Preprod's indexer is hosted by Blockfrost. The project id is a credential,
+  // so it comes from the environment and `publicIndexer` is the form recorded
+  // in the published evidence. The node is Midnight's own public RPC: wallet
+  // SDK 2 follows the chain's protocol version over a node subscription, which
+  // Blockfrost's RPC WebSocket drops.
   get preprod() {
     const id = process.env.BLOCKFROST_PREPROD_PROJECT_ID;
     if (!id) throw new Error('Set BLOCKFROST_PREPROD_PROJECT_ID to the id of a Blockfrost "Midnight Preprod" project.');
     return {
       networkId: 'preprod',
+      walletNetworkId: NetworkId.NetworkId.PreProd,
       indexer: `https://midnight-preprod.blockfrost.io/api/v0?project_id=${id}`,
       indexerWS: `wss://midnight-preprod.blockfrost.io/api/v0/ws?project_id=${id}`,
       publicIndexer: 'https://midnight-preprod.blockfrost.io/api/v0',
-      node: `https://rpc.midnight-preprod.blockfrost.io?project_id=${id}`,
+      node: process.env.AMANA_PREPROD_NODE ?? 'wss://rpc.preprod.midnight.network',
       proofServer: process.env.AMANA_PROOF_SERVER ?? 'http://127.0.0.1:6300',
       faucet: 'https://midnight-tmnight-preprod.nethermind.dev/',
       explorer: 'https://preprod.midnightexplorer.com',
@@ -73,56 +80,52 @@ export const loadOrCreateSeed = (file) => {
   return seed;
 };
 
-const deriveKeys = (seedHex) => {
-  const hd = HDWallet.fromSeed(Buffer.from(seedHex, 'hex'));
-  if (hd.type !== 'seedOk') throw new Error('Invalid wallet seed.');
-  const derived = hd.hdWallet.selectAccount(0)
-    .selectRoles([Roles.Zswap, Roles.NightExternal, Roles.Dust]).deriveKeysAt(0);
-  if (derived.type !== 'keysDerived') throw new Error('Wallet key derivation failed.');
-  hd.hdWallet.clear();
-  return derived.keys;
-};
-
 /**
  * Build and start the wallet. Returns once it is running, not once it has
  * synced. With `stateFile`, resumes from the last checkpoint saved there, so a
- * second run does not rescan the chain from its first block.
+ * second run does not rescan the chain from its first block. A checkpoint from
+ * the ledger 8 wallet (no version 2 tag) is not used.
  */
 export const buildWallet = async (network, seedHex, stateFile) => {
-  setNetworkId(network.networkId);
-  const saved = stateFile && existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : null;
-  const keys = deriveKeys(seedHex);
-  const shieldedSecretKeys = ledger.ZswapSecretKeys.fromSeed(keys[Roles.Zswap]);
-  const dustSecretKey = ledger.DustSecretKey.fromSeed(keys[Roles.Dust]);
-  const unshieldedKeystore = createKeystore(keys[Roles.NightExternal], getNetworkId());
-  const connection = { indexerHttpUrl: network.indexer, indexerWsUrl: network.indexerWS };
-  const relayURL = new URL(network.node.replace(/^http/, 'ws'));
+  const raw = stateFile && existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : null;
+  const saved = raw?.version === 2 ? raw : null;
+  const seeds = WalletSeeds.fromMasterSeed(Buffer.from(seedHex, 'hex'));
+  const unshieldedKeystore = createKeystore({ kind: 'schnorr', secret: seeds.unshielded }, network.walletNetworkId);
+  const configuration = {
+    forks: DefaultForkSchedule,
+    networkId: network.walletNetworkId,
+    indexerClientConnection: { indexerHttpUrl: network.indexer, indexerWsUrl: network.indexerWS },
+    provers: { v9: { kind: 'server', url: new URL(network.proofServer) } },
+    relayURL: new URL(network.node),
+    txHistoryStorage: new InMemoryTransactionHistoryStorage(WalletEntrySchema, mergeWalletEntries),
+    costParameters: { additionalFeeOverhead: 300_000_000_000_000n, feeBlocksMargin: 5 },
+  };
+  const restoreOr = async (restore, start) => {
+    if (saved) {
+      try { return await restore(); } catch { log('The saved wallet state could not be used; syncing from the start.'); }
+    }
+    return start();
+  };
+  const shielded = await restoreOr(() => ShieldedWallet(configuration).restore(saved.shielded),
+    () => ShieldedWallet(configuration).startWithSeed(seeds.shielded));
+  const unshielded = await restoreOr(() => UnshieldedWallet(configuration).restore(saved.unshielded),
+    () => UnshieldedWallet(configuration).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore)));
+  const dust = await restoreOr(() => DustWallet(configuration).restore(saved.dust),
+    () => DustWallet(configuration).startWithSeed(seeds.dust));
   const wallet = await WalletFacade.init({
-    configuration: {
-      networkId: getNetworkId(),
-      indexerClientConnection: connection,
-      provingServerUrl: new URL(network.proofServer),
-      relayURL,
-      txHistoryStorage: new InMemoryTransactionHistoryStorage(WalletEntrySchema, mergeWalletEntries),
-      costParameters: { additionalFeeOverhead: 300_000_000_000_000n, feeBlocksMargin: 5 },
-    },
-    shielded: (cfg) => saved ? ShieldedWallet(cfg).restore(saved.shielded)
-      : ShieldedWallet(cfg).startWithSecretKeys(shieldedSecretKeys),
-    unshielded: (cfg) => saved ? UnshieldedWallet(cfg).restore(saved.unshielded)
-      : UnshieldedWallet(cfg).startWithPublicKey(PublicKey.fromKeyStore(unshieldedKeystore)),
-    dust: (cfg) => saved ? DustWallet(cfg).restore(saved.dust)
-      : DustWallet(cfg).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
+    configuration, shielded: () => shielded, unshielded: () => unshielded, dust: () => dust,
   });
-  await wallet.start(shieldedSecretKeys, dustSecretKey);
+  await wallet.start(seeds);
   if (saved) log('Resumed the wallet from its last checkpoint.');
-  return { wallet, shieldedSecretKeys, dustSecretKey, unshieldedKeystore, stateFile,
-    address: unshieldedKeystore.getBech32Address() };
+  return { wallet, seeds, unshieldedKeystore, stateFile,
+    address: unshieldedKeystore.getBech32Address().asString() };
 };
 
 /** Checkpoint the wallet's sync state next to its seed. */
 export const saveWallet = async (ctx) => {
   if (!ctx.stateFile) return;
   const state = {
+    version: 2,
     shielded: await ctx.wallet.shielded.serializeState(),
     unshielded: await ctx.wallet.unshielded.serializeState(),
     dust: await ctx.wallet.dust.serializeState(),
@@ -130,10 +133,14 @@ export const saveWallet = async (ctx) => {
   writeFileSync(ctx.stateFile, JSON.stringify(state), { mode: 0o600 });
 };
 
-const synced = (wallet, throttle = 5_000) =>
-  wallet.state().pipe(Rx.throttleTime(throttle, undefined, { leading: true, trailing: true }), Rx.filter((s) => s.isSynced));
+/** Synced on all three wallets, with the chain's protocol version settled (wallet SDK 2). */
+const isSynced = (s) => s.shielded.progress.isStrictlyComplete() && s.dust.progress.isStrictlyComplete()
+  && s.unshielded.progress?.isStrictlyComplete() === true && s.protocol?._tag === 'Settled';
 
-export const nightBalance = (state) => state.unshielded.balances[ledger.unshieldedToken().raw] ?? 0n;
+const synced = (wallet, throttle = 5_000) =>
+  wallet.state().pipe(Rx.throttleTime(throttle, undefined, { leading: true, trailing: true }), Rx.filter(isSynced));
+
+export const nightBalance = (state) => state.unshielded.balances[unshieldedToken().raw] ?? 0n;
 export const dustBalance = (state) => state.dust.balance(new Date());
 
 const progress = (wallet) => {
@@ -144,7 +151,7 @@ const progress = (wallet) => {
 
 /** Wait for a full sync, logging progress and checkpointing once a minute meanwhile. */
 export const waitForSync = async (ctx) => {
-  const ticker = ctx.wallet.state().pipe(Rx.throttleTime(60_000), Rx.filter((s) => !s.isSynced)).subscribe((s) => {
+  const ticker = ctx.wallet.state().pipe(Rx.throttleTime(60_000), Rx.filter((s) => !isSynced(s))).subscribe((s) => {
     log(`Syncing: shielded ${progress(s.shielded)} · dust ${progress(s.dust)} · unshielded ${progress(s.unshielded)}`);
     saveWallet(ctx).catch(() => {});
   });
@@ -169,7 +176,7 @@ export const ensureFunded = async (ctx, minimumDust = 1n) => {
   if (unregistered.length > 0 && dustBalance(state) < minimumDust) {
     log(`Registering ${unregistered.length} tNIGHT output(s) for DUST generation…`);
     const recipe = await ctx.wallet.registerNightUtxosForDustGeneration(
-      unregistered, ctx.unshieldedKeystore.getPublicKey(), (payload) => ctx.unshieldedKeystore.signData(payload));
+      unregistered, ctx.unshieldedKeystore.getPublicKey(), (payload) => ctx.unshieldedKeystore.signDataAsync(payload));
     await ctx.wallet.submitTransaction(await ctx.wallet.finalizeRecipe(recipe));
     log('Registered. DUST now accrues over time.');
   }
@@ -182,44 +189,37 @@ export const ensureFunded = async (ctx, minimumDust = 1n) => {
   return state;
 };
 
-/**
- * Sign every unshielded offer in a transaction's intents with the right proof
- * marker. Works around the wallet SDK's signRecipe, which assumes 'pre-proof'
- * and fails on already-proven intents (as noted in the upstream example).
- */
-const signIntents = (tx, sign, marker) => {
-  if (!tx.intents || tx.intents.size === 0) return;
-  for (const segment of tx.intents.keys()) {
-    const intent = tx.intents.get(segment);
-    if (!intent) continue;
-    const cloned = ledger.Intent.deserialize('signature', marker, 'pre-binding', intent.serialize());
-    const signature = sign(cloned.signatureData(segment));
-    for (const offer of ['fallibleUnshieldedOffer', 'guaranteedUnshieldedOffer']) {
-      if (cloned[offer]) {
-        cloned[offer] = cloned[offer].addSignatures(
-          cloned[offer].inputs.map((_, i) => cloned[offer].signatures.at(i) ?? signature));
-      }
-    }
-    tx.intents.set(segment, cloned);
-  }
+const activeVersion = async (wallet) => (await Rx.firstValueFrom(wallet.state())).activeProtocolVersion;
+
+/** A midnight-js transaction handle, read by the wallet SDK's own ledger copy and adopted by the facade. */
+const adopt = async (wallet, stage, tx) => {
+  const marker = stage === 'Unbound' ? 'pre-binding' : 'binding';
+  return WalletTransaction.adopt(stage,
+    WalletLedger.Transaction.deserialize('signature', 'proof', marker, tx.serialize()), await activeVersion(wallet));
+};
+
+/** The bytes of a finalized wallet SDK handle, for midnight-js to seal. */
+const bytesOf = async (wallet, handle) => {
+  const epoch = ProtocolVersion.epochOf(await activeVersion(wallet), DefaultForkSchedule.v9);
+  const unwrapped = WalletTransaction.unwrapWithin(handle, epoch);
+  if (Either.isLeft(unwrapped)) throw unwrapped.left;
+  return unwrapped.right.serialize();
 };
 
 /** The wallet and midnight providers midnight-js expects, backed by the facade. */
 export const walletProviders = async (ctx) => {
   const state = await waitForSync(ctx);
-  const provider = {
+  const walletProvider = createLedger9WalletProvider({
     getCoinPublicKey: () => state.shielded.coinPublicKey.toHexString(),
     getEncryptionPublicKey: () => state.shielded.encryptionPublicKey.toHexString(),
     async balanceTx(tx, ttl) {
-      const recipe = await ctx.wallet.balanceUnboundTransaction(tx,
-        { shieldedSecretKeys: ctx.shieldedSecretKeys, dustSecretKey: ctx.dustSecretKey },
+      const recipe = await ctx.wallet.balanceUnboundTransaction(await adopt(ctx.wallet, 'Unbound', tx),
         { ttl: ttl ?? new Date(Date.now() + 30 * 60 * 1000) });
-      const sign = (payload) => ctx.unshieldedKeystore.signData(payload);
-      signIntents(recipe.baseTransaction, sign, 'proof');
-      if (recipe.balancingTransaction) signIntents(recipe.balancingTransaction, sign, 'pre-proof');
-      return ctx.wallet.finalizeRecipe(recipe);
+      const signed = await ctx.wallet.signRecipe(recipe, (payload) => ctx.unshieldedKeystore.signDataAsync(payload));
+      return bytesOf(ctx.wallet, await ctx.wallet.finalizeRecipe(signed));
     },
-    submitTx: (tx) => ctx.wallet.submitTransaction(tx),
-  };
-  return { walletProvider: provider, midnightProvider: provider };
+  });
+  const midnightProvider = createLedger9MidnightProvider(
+    async (tx) => ctx.wallet.submitTransaction(await adopt(ctx.wallet, 'Finalized', tx)));
+  return { walletProvider, midnightProvider };
 };

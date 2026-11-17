@@ -12,7 +12,7 @@
 [![On-chain evidence](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml)
 ![Compact](https://img.shields.io/badge/Compact-0.23%E2%80%930.27-d9a441)
 ![Circuits](https://img.shields.io/badge/circuits-10-4ea882)
-![Tests](https://img.shields.io/badge/tests-140%20passing-4ea882)
+![Tests](https://img.shields.io/badge/tests-141%20passing-4ea882)
 ![Network](https://img.shields.io/badge/Midnight-preprod-8b5cf6)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
@@ -196,13 +196,13 @@ At most one summary per lender may contribute, so reissuing a cumulative snapsho
 
 ## Quick start
 
-Node 22.17+, Compact CLI 0.5.1, compiler 0.31.1, language 0.23. Install the CLI from the [pinned release](https://github.com/midnightntwrk/compact/releases/tag/compact-v0.5.1), then `compact update 0.31.1`. Deploy with 0.31.x: preview, preprod and mainnet run ledger 8. The contract also compiles with the latest toolchain, 0.35.0 (language 0.27), and CI checks both.
+Node 22.17+, Compact CLI 0.5.1, compiler 0.36.1, language 0.28, compact-runtime 0.21, Midnight.js 5, wallet SDK 2. Install the CLI from the [pinned release](https://github.com/midnightntwrk/compact/releases/tag/compact-v0.5.1), then `compact update 0.36.1`. That toolchain targets ledger 9, which mainnet (6 November 2026), preview (7 November, reset) and Preprod (9 November) all run; a 0.31.x build targets ledger 8 and no longer deploys. CI also compiles the contract with the newest Compact release.
 
 ```sh
 npm ci
 npm run compact      # compiles ten circuits, generates proving/verifying keys
 npm run typecheck
-npm test             # 127 tests
+npm test             # 141 tests
 npm run build
 ```
 
@@ -217,10 +217,10 @@ Amana reads the indexer and proof-server endpoints from the connected wallet's o
 1. **Start a local proof server** and leave it running:
 
    ```sh
-   docker run -p 6300:6300 midnightntwrk/proof-server:8.1.3
+   docker run -p 6300:6300 midnightntwrk/proof-server:9.0.2
    ```
 
-   Version 8.1.3 is the one Midnight's [compatibility matrix](https://docs.midnight.network/relnotes/support-matrix) lists for ledger 8, which preview, Preprod and mainnet all run. It serves every network, so it takes no network flag. The older `midnightnetwork/proof-server:latest` image is a ledger 7 build and does not match the live networks.
+   Version 9.0.2 is a ledger 9 build, matching what preview, Preprod and mainnet run since the November 2026 hard fork. It serves every network, so it takes no network flag. The 8.1.x images are ledger 8 builds and cannot prove for the live networks any more.
 
 2. **Point Lace at it.** Settings » Midnight » proof server » `Local (http://localhost:6300)`. Set the wallet to the preview network. A local prover is currently the only option Lace supports, which is also the right choice: the prover sees the witnesses.
 

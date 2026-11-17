@@ -39,15 +39,24 @@ const decode = (text) => JSON.parse(text, (_k, v) =>
   v && typeof v === 'object' && '$bytes' in v ? new Uint8Array(Buffer.from(v.$bytes, 'hex'))
     : v && typeof v === 'object' && '$bigint' in v ? BigInt(v.$bigint) : v);
 
+/** Midnight.js 5's private state provider: one view per contract, all kept in one file per participant. */
 const filePrivateStateProvider = (file) => {
-  const store = existsSync(file) ? decode(readFileSync(file, 'utf8')) : { states: {}, signingKeys: {} };
+  const store = existsSync(file) ? decode(readFileSync(file, 'utf8')) : { contracts: {}, signingKeys: {} };
+  store.contracts ??= {};
   const save = () => { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, encode(store)); };
   return {
-    setContractAddress() {},
-    async set(id, state) { store.states[id] = state; save(); },
-    async get(id) { return store.states[id] ?? null; },
-    async remove(id) { delete store.states[id]; save(); },
-    async clear() { store.states = {}; save(); },
+    forContract(contractAddress) {
+      const address = contractAddress.toLowerCase();
+      const states = () => (store.contracts[address] ??= {});
+      return {
+        contractAddress: address,
+        async set(id, state) { states()[id] = state; save(); },
+        async get(id) { return states()[id] ?? null; },
+        async remove(id) { delete states()[id]; save(); },
+        async clear() { delete store.contracts[address]; save(); },
+      };
+    },
+    async clearAll() { store.contracts = {}; save(); },
     async setSigningKey(address, key) { store.signingKeys[address] = key; save(); },
     async getSigningKey(address) { return store.signingKeys[address] ?? null; },
     async removeSigningKey(address) { delete store.signingKeys[address]; save(); },
@@ -116,11 +125,13 @@ await ensureFunded(ctx);
 const { walletProvider, midnightProvider } = await walletProviders(ctx);
 const zkConfigProvider = new NodeZkConfigProvider(path('contract/src/managed/amana'));
 const shared = {
-  publicDataProvider: indexerPublicDataProvider(network.indexer, network.indexerWS),
+  publicDataProvider: indexerPublicDataProvider({ queryURL: network.indexer, subscriptionURL: network.indexerWS }),
   zkConfigProvider,
-  proofProvider: httpClientProofProvider(network.proofServer, zkConfigProvider),
+  // A local proof of the largest circuit can take minutes; allow half an hour.
+  proofProvider: httpClientProofProvider({ url: network.proofServer, zkConfigProvider, timeout: 30 * 60_000 }),
   walletProvider,
   midnightProvider,
+  config: { networkId: network.networkId, ttlSeconds: 30 * 60 },
 };
 const stateFiles = new Map();
 const providersFor = (actor) => {
@@ -192,7 +203,7 @@ await refusal('Borrower', 'Answer the same check a second time', 'proveCreditSta
 const check15 = await transaction('Verifier', 'Commit a stricter check: at least 15', 'createCheck', () => check(15n));
 
 // The borrower holds 14 and edits institution A's record from 8 to 9 to reach 15.
-const borrowerState = stateFiles.get('borrower');
+const borrowerState = stateFiles.get('borrower').forContract(address);
 const honest = await borrowerState.get(amanaPrivateStateKey);
 await borrowerState.set(amanaPrivateStateKey, {
   ...honest,
