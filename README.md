@@ -12,21 +12,21 @@
 [![On-chain evidence](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml/badge.svg)](https://github.com/farouk-allani/amana/actions/workflows/onchain.yml)
 ![Compact](https://img.shields.io/badge/Compact-0.23%E2%80%930.27-d9a441)
 ![Circuits](https://img.shields.io/badge/circuits-10-4ea882)
-![Tests](https://img.shields.io/badge/tests-127%20passing-4ea882)
-![Network](https://img.shields.io/badge/Midnight-preprod%20%C2%B7%20preview-8b5cf6)
+![Tests](https://img.shields.io/badge/tests-140%20passing-4ea882)
+![Network](https://img.shields.io/badge/Midnight-preprod-8b5cf6)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 
 **Portable private repayment history on Midnight.** (Arabic أمانة, "a trust placed in someone's hands.")
 
 > **Live on Midnight Preprod, protocol 3.** Preprod is the test network Midnight recommends before mainnet. Registry `1da3be974772f4c2c0adc93bda3caa37a04a31cdaa4bdd670b0b928709ef0f28`, run end to end with real proofs on 18 October: [14 transactions and 7 refusals](docs/evidence/preprod-run.md). A borrower [proved on chain](https://preprod.midnightexplorer.com/transactions/f493653f6189afc6f3b91652fc6fbc97b93d882ce635f27bef89ca0535de8c6e) that 8 + 6 on-time repayments from two institutions clear a threshold of 14, revealing neither institution nor the total. Forged counts, a voided record, an outsider answering someone else's check and a withdrawn institution issuing were all refused by the circuit, so nothing was sent. Re-check the chain side with no wallet using `npm run verify:onchain -- preprod` (26 checks against [the recorded evidence](docs/evidence/preprod.json)). Preprod's indexer is hosted by Blockfrost, so this needs the id of a free Blockfrost project for Preprod in `BLOCKFROST_PREPROD_PROJECT_ID`.
 >
-> **Also live on preview**, where the same run was first recorded on 6 October: registry `663c23414094c13a26ca98f476923a1d8b32bd631b9a83e3a3ad2a91df7d1c1e` ([run](docs/evidence/preview-run.md)). Its check needs no account at all: `npm run verify:onchain`. CI re-checks both registries daily. Repeat the whole run on a funded test wallet with `npm run evidence` (preview) or `npm run evidence -- preprod`.
+> **First run on preview**, recorded on 6 October: registry `663c23414094c13a26ca98f476923a1d8b32bd631b9a83e3a3ad2a91df7d1c1e` ([run](docs/evidence/preview-run.md)). Midnight has since reset the preview network, so that registry no longer exists and `npm run verify:onchain` reports the reset instead of checking it. CI re-checks the Preprod registry on every push and daily. Repeat the whole run on a funded test wallet with `npm run evidence` (preview) or `npm run evidence -- preprod`.
 
 **Demo video:** [youtu.be/icJiG_0mlUI](https://youtu.be/icJiG_0mlUI) · **Pitch deck:** [Wave 2, 16 slides, PDF](docs/amana-deck.pdf)
 
 **Try it with no wallet:** [amana-rust.vercel.app/#try](https://amana-rust.vercel.app/#try). The compiled contract runs in your browser: a borrower clears a lender's question without revealing her records, and six attempts to cheat are refused by the contract's own asserts. No zero-knowledge proof is built and nothing is sent to a network there; the run with real proofs is the Preprod one above.
 
-**Hosted build with a wallet:** [amana-rust.vercel.app](https://amana-rust.vercel.app/). It needs what any Midnight DApp needs on your side: the Lace Midnight Preview wallet on the preview network with a funded wallet, and a proof server running locally on `:6300` (see [Deploy to preview](#deploy-to-preview)). The hosted build is configured for preview, so paste the preview registry address above and **Join registry** to act as a borrower or verifier, or deploy a registry of your own to drive all four roles.
+**Hosted build with a wallet:** [amana-rust.vercel.app](https://amana-rust.vercel.app/). It needs what any Midnight DApp needs on your side: the Lace Midnight Preview wallet on the preview network with a funded wallet, and a proof server running locally on `:6300` (see [Deploy to preview](#deploy-to-preview)). The hosted build is configured for preview, where the recorded registry was lost in the network reset, so **Deploy a new registry** of your own to drive all four roles.
 
 <p align="center">
   <img src="docs/assets/amana-app-showcase.png" alt="Amana: the borrower's repayment passport, the review before proving, and the lender's receipt" width="1100">

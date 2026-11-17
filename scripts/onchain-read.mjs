@@ -73,6 +73,17 @@ export const readSnapshot = async (network, indexer, contract) => {
   };
 };
 
+/** The height of the newest block the indexer knows. */
+export const readTip = async (indexer) => {
+  const response = await fetch(indexer, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query: '{ block { height } }' }),
+  });
+  if (!response.ok) throw new Error(`Indexer returned HTTP ${response.status} for the chain tip.`);
+  const height = (await response.json()).data?.block?.height;
+  if (typeof height !== 'number') throw new Error('Indexer did not report a chain tip.');
+  return height;
+};
+
 /** Every transaction that touched the registry, newest first, with the circuit it called. */
 export const readHistory = async (indexer, contract) => {
   const query = `{ contract(address: "${contract}") { actions(limit: 1000) {

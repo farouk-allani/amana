@@ -12,9 +12,6 @@ import { hasCompatibleWallet } from '../wallet.js';
 import * as utils from '../../../api/src/utils/index.js';
 import { Lockup } from './Shell.jsx';
 
-/** The protocol 3 registry the scripted evidence run used on preview. */
-export const PUBLIC_PREVIEW_REGISTRY = '663c23414094c13a26ca98f476923a1d8b32bd631b9a83e3a3ad2a91df7d1c1e';
-
 const POINTS = [
   {
     icon: IdCard,
@@ -175,15 +172,7 @@ export const Connect: React.FC<{
             <Field
               label="Registry address"
               error={addressError}
-              hint={
-                <>
-                  Paste the address you were given, or{' '}
-                  <button type="button" className="link-button" onClick={() => onAddress(PUBLIC_PREVIEW_REGISTRY)}>
-                    use the public preview registry
-                  </button>
-                  .
-                </>
-              }
+              hint="Paste the address you were given, or deploy a new registry below."
             >
               <Input
                 mono

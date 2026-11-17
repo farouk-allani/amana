@@ -13,11 +13,23 @@
 
 import { readFileSync } from 'node:fs';
 import { evaluate } from './onchain-checks.mjs';
-import { authorise, readHistory, readSnapshot, redact } from './onchain-read.mjs';
+import { authorise, readHistory, readSnapshot, readTip, redact } from './onchain-read.mjs';
 
 const network = process.argv[2] ?? 'preview';
 const evidence = JSON.parse(readFileSync(new URL(`../docs/evidence/${network}.json`, import.meta.url), 'utf8'));
 const indexer = authorise(process.env.AMANA_INDEXER_URL ?? evidence.indexer, network);
+
+// A test network that has been reset is shorter than the block the registry
+// was deployed in: the record is history, not a failed check. Anything else,
+// including a missing registry on a chain that is long enough, still fails.
+const deployedIn = evidence.transactions.find((tx) => tx.kind === 'deploy')?.block;
+const tip = await readTip(indexer);
+if (deployedIn !== undefined && tip < deployedIn) {
+  console.log(`Amana on-chain verification · ${network} · registry ${evidence.contract}`);
+  console.log(`${network} has been reset: its newest block is ${tip}, before block ${deployedIn} where this registry `
+    + `was deployed on ${evidence.recorded}. The recorded run is history and cannot be re-read; nothing was checked.`);
+  process.exit(0);
+}
 
 const snapshot = await readSnapshot(network, indexer, evidence.contract);
 const history = await readHistory(indexer, evidence.contract);
